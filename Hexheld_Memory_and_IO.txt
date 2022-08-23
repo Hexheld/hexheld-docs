@@ -1,0 +1,302 @@
+
+General Memory Map:
+
+$000000 - $007FFF    WRAM
+$008000 - $009FFF    VRAM (Plane 0)
+$00A000 - $00BFFF    VRAM (Plane 1)
+$00C000 - $00DFFF    VRAM (Plane 2)
+$00E000 - $00FFFF    VRAM (Plane 3)
+$010000 - $01FFFF    Cartridge ROM/SRAM/Expansion/etc. (controlled by CSMOD register)
+$020000 - $FFFFFF    Cartridge ROM
+
+
+Bitmap Format:
+
+$008000 - $00807F    Row 0
+$008080 - $0080FF    Row 1
+...
+$00FF80 - $00FFFF    Row 255
+
+Bitmap Row Format:
+
++0      AAAABBBB    A/B: Pixel 0/1
++1      AAAABBBB    A/B: Pixel 2/3
+...
++127    AAAABBBB    A/B: Pixel 254/255
+
+
+Planar Character Set Format (per plane):
+
++0    - +7       Character 0
++8    - +15      Character 1
+...
++8184 - +8191    Character 1023
+
+Planar Character Format (one plane):
+
++0    ABCDEFGH    Row 0 (A: left-most pixel, H: right-most pixel)
++1    ABCDEFGH    Row 1 (A: left-most pixel, H: right-most pixel)
+...
++7    ABCDEFGH    Row 7 (A: left-most pixel, H: right-most pixel)
+
+
+Sprite List Table Format:
+
+base + 0   + spriteNo    XXXXXXXX    X Position ($00 to $FF: -8 to +247)
+base + 128 + spriteNo    YYYYYYYY    Y Position ($00 to $DF: 0 to +223, $E0 to $FF: -32 to -1)
+base + 256 + spriteNo    CCCCCPHV    C: Character ID [4:0], P: Priority (0: high, 1: low), H/V: Horizontal/Vertical Flip
+base + 384 + spriteNo    PPPCCCCC    P: PAL Select (same as with BG tiles), C: Character ID [9:5]
+base + 512 + spriteNo    E--HHBBB    E: Mark End of Sprite List, H: Height, B: BPP Setting
+
+Heights:
+0 - 8 pixels  (1 character)
+1 - 16 pixels (2 characters stacked)
+2 - 24 pixels (3 characters stacked)
+3 - 32 pixels (4 characters stacked)
+
+Sprites with the "end" flag set are not displayed, and sprites with higher indexes won't get displayed as well.
+
+BPP Settings:
+     Depth    Planes Enabled
+0    1BPP     0---
+1    1BPP     ---3
+2    2BPP     01--
+3    2BPP     --23
+4    3BPP     012-
+5    3BPP     -123
+6    4BPP     0123
+7    <reserved>
+
+Sprites with a higher number have priority over those with a lower number, when set to the same priority.
+Furthermore, sprites dominate background tiles on the same priority.
+
+
+
+I/O Map:
+
+                        76543210
+
+$00    PSR (R)          LSB--FMM    L: LCD Enable, S: Segment Enable, B: Battery Indicator Enable, F: Force Blank, M: Mode
+$00    PCR (W)          LSB--F--    ...
+$01    LY (R)           LLLLLLLL    Line Counter
+$01    LYC (W)          LLLLLLLL    Line Counter Compare Number (interrupt on LY transitioning to LYC value)
+$02    BGXA (R/W)       -TXXXXXA    T: Tilemap Number (0: BG1, 1: BG2), X: Tilemap X Position, A: Tilemap Attribute Byte Select
+$03    BGYA (R/W)       D--YYYYY    D: Auto-Increment Direction (0: X, 1: Y), Y: Tilemap Y Position
+$04    BGDAT (R/W)      DDDDDDDD    Tilemap RAM Data Read/Write
+$05    SDMA (W)         ---SSSSS    Init Sprite DMA to run at start of next/upcoming VBLANK (base = $008000 + S*1024)
+$06    VMOD (W)         WOBASSMM    W/O/B/A: Window/Sprites/BG2/BG1 Enable, S: Background Submode, M: Background Mode
+$07    WINIO (W)        -III-OOO    I/O: Show Sprites/BG2/BG1 Inside/Outside Window
+
+$08    WINL (W)         LLLLLLLL    Window Left Edge Position
+$09    WINT (W)         TTTTTTTT    Window Top Edge Position
+$0A    WINR (W)         RRRRRRRR    Window Right Edge Position
+$0B    WINB (W)         BBBBBBBB    Window Bottom Edge Position
+$0C    BG1X (W)         XXXXXXXX    BG1 X Scroll Offset [7:0]
+$0D    BG1Y (W)         YYYYYYYY    BG1 Y Scroll Offset [7:0]
+$0E    BG2X (W)         XXXXXXXX    BG2 X Scroll Offset
+$0F    BG2Y (W)         YYYYYYYY    BG2 Y Scroll Offset
+
+$10    PAL0 (W)         -AAA-BBB    A/B: Palette Entry 0/1 (0 is backdrop color)
+$11    PAL1 (W)         -AAA-BBB    A/B: Palette Entry 2/3
+$12    PAL2 (W)         -AAA-BBB    A/B: Palette Entry 4/5
+$13    PAL3 (W)         -AAA-BBB    A/B: Palette Entry 6/7
+$14    PAL4 (W)         -AAA-BBB    A/B: Palette Entry 8/9
+$15    PAL5 (W)         -AAA-BBB    A/B: Palette Entry 10/11
+$16    PAL6 (W)         -AAA-BBB    A/B: Palette Entry 12/13
+$17    PAL7 (W)         -AAA-BBB    A/B: Palette Entry 14/15
+
+$18    NUM0 (W)         -NNNNNNN    Segment Display Number 0
+$19    NUM1 (W)         -NNNNNNN    Segment Display Number 1
+$1A    NUM2 (W)         -NNNNNNN    Segment Display Number 2
+$1B    NUM3 (W)         -NNNNNNN    Segment Display Number 3
+$1C    NUM4 (W)         -NNNNNNN    Segment Display Number 4
+$1D    NUM5 (W)         -NNNNNNN    Segment Display Number 5
+$1E    NUM6 (W)         -NNNNNNN    Segment Display Number 6
+$1F    NUM7 (W)         -NNNNNNN    Segment Display Number 7
+
+$20    ACR  (W)         E--DSCBA    E: Audio Output Enable, D/S: DAC/Slope Enable, C/B/A: Noise 3/2/1 Enable
+$21    NO11 (W)         FFFFFFFF    Fine-Tune
+$22    NO12 (W)         -----CCC    Octave Clock Select (0-7: DIV4/8/16/32/64/128/256/512)
+$23    NO13 (R/W)       LLLLLLLL    LFSR State [7:0]
+$24    NO14 (R/W)       LLLLLLLL    LFSR State [15:8]
+$25    NO15 (W)         AAAABBBB    A: Main Tap, B: Noise XOR Tap (0: Input Bit, 15: Output Bit)
+$26    NO16 (W)         LLLLRRRR    L/R: Left/Right Volume (0: Mute, 15: Loudest)
+$27    NO17 (W)         S-----EN    S: Channel Switch (0: Stop, 1: Start), E: Slope Mod Enable, N: Noise Enable
+
+$28    LVL  (W)         AABBLLRR    A/B: Left/Right Audio Inputs' Volumes, L/R: DAC Left/Right Volume (0: Mute, 3: Loudest)
+$29    NO21 (W)         FFFFFFFF    Fine-Tune
+$2A    NO22 (W)         -----CCC    Octave Clock Select (0-7: DIV4/8/16/32/64/128/256/512)
+$2B    NO23 (R/W)       LLLLLLLL    LFSR State [7:0]
+$2C    NO24 (R/W)       LLLLLLLL    LFSR State [15:8]
+$2D    NO25 (W)         AAAABBBB    A: Main Tap, B: Noise XOR Tap (0: Input Bit, 15: Output Bit)
+$2E    NO26 (W)         LLLLRRRR    L/R: Left/Right Volume (0: Mute, 15: Loudest)
+$2F    NO27 (W)         S-----EN    S: Channel Switch (0: Stop, 1: Start), E: Slope Mod Enable, N: Noise Enable
+
+$30    DAC  (W)         DDDDDDDD    DAC Amplitude
+$31    NO31 (W)         FFFFFFFF    Fine-Tune
+$32    NO32 (W)         -----CCC    Octave Clock Select (0-7: DIV4/8/16/32/64/128/256/512)
+$33    NO33 (R/W)       LLLLLLLL    LFSR State [7:0]
+$34    NO34 (R/W)       LLLLLLLL    LFSR State [15:8]
+$35    NO35 (W)         AAAABBBB    A: Main Tap, B: Noise XOR Tap (0: Input Bit, 15: Output Bit)
+$36    NO36 (W)         LLLLRRRR    L/R: Left/Right Volume (0: Mute, 15: Loudest)
+$37    NO37 (W)         S-----EN    S: Channel Switch (0: Stop, 1: Start), E: Slope Mod Enable, N: Noise Enable
+
+$38    SCNT (R/W)       -CCCCCCC    Slope Accumulator
+$39    SLO1 (W)         FFFFFFFF    Fine-Tune
+$3A    SLO2 (W)         -----CCC    Octave Clock Select (0-7: DIV4/8/16/32/64/128/256/512)
+$3B    SLO3 (W)         AAAAAAAA    Slope A Period
+$3C    SLO4 (W)         BBBBBBBB    Slope B Period
+$3D    SLO5 (W)         AAAABBBB    A/B: Slope A/B Accumulation Amount
+$3E    SLO6 (W)         LLLLRRRR    L/R: Left/Right Volume (0: Mute, 15: Loudest)
+$3F    SLO7 (W)         SRFFFFFF    S: Channel Switch (0: Stop, 1: Start), R: Slope Generator Reset, F: Slope Flags
+
+$40    D1SR (R)         ARWMMMTT    A: Active, R: Repeat, W: Word Size, M: Mode, T: Timing (0: Instant, 1: HBLANK, 2: TIMA, 3: EXT)
+$40    D1CR (W)         SRWMMMTT    S: Start, ...
+$41    D2SR (R)         ARWMMMTT    A: Active, R: Repeat, W: Word Size, M: Mode, T: Timing (0: Instant, 1: COMR, 2: TIMA, 3: EXT)
+$41    D2CR (W)         SRWMMMTT    S: Start, ...
+
+$42    TIMASR (R)       R--SCCCC    R: Running, S: One-Shot, C: Clock (0-7: DIV4/8/16/32/64/128/256/512, 8: EXT, 9-15: reserved)
+$42    TIMACR (W)       E--SCCCC    E: Enable, ...
+$43    TIMACNTL (R)     CCCCCCCC    Timer A Counter [7:0]
+$43    TIMARL (W)       RRRRRRRR    Timer A Reload Value [7:0]
+$44    TIMACNTH (R)     ---CCCCC    Timer A Counter [12:8]
+$44    TIMARH (W)       ---RRRRR    Timer A Reload Value [12:8] (Hz = clockFreq/(8192-R))
+
+$45    TIMBSR (R)       R--SCCCC    R: Running, S: One-Shot, C: Clock (0-7: DIV4/8/16/32/64/128/256/512, 8: TIMA, 9-15: reserved)
+$45    TIMBCR (W)       E--SCCCC    E: Enable, ...
+$46    TIMBCNTL (R)     CCCCCCCC    Timer B Counter [7:0]
+$46    TIMBRL (W)       RRRRRRRR    Timer B Reload Value [7:0]
+$47    TIMBCNTH (R)     ---CCCCC    Timer B Counter [12:8]
+$47    TIMBRH (W)       ---RRRRR    Timer B Reload Value [12:8] (Hz = clockFreq/(8192-R))
+
+$48    COMSR (R)        TR------    T: Transfer Out in Progress, R: New Data Received
+$49    COMRDAT (R)      RRRRRRRR    Received Data Byte (clears R in COMSR)
+$49    COMTOUT (W)      TTTTTTTT    Transfer Out Data Byte
+$4A    PORTIN (R)       BXCCCCCC    B: Backlight Adjust Button (0: held), X: Cartridge EXT Line, C: Controller Port Input Lines
+$4B    PORTOUT (R/W)    --CCCCCC    C: Controller Port Output Lines
+$4C    CARTOUT (R/W)    OOOOOOOO    O: Cartridge Output Lines (8-bit cart bus mode only)
+$4D    CSMOD (R/W)      ---MXXXX    M: CS1 Mode (0: ROM, 1: Normal), X: Bound Setting (CS1 = addr >= $01X000; CS2 = addr < $01X000)
+$4E    WAITCR (R/W)     ---W-RRR    W: Cart Data Bus Width (0: 8-bit, 1: 16-bit), R: ROM Access Waitstate Count
+$4F    IRSR (R)         L------I    L: Signal from Receiver, I: Infrared Light Switch (0: on, 1: off)
+$4F    IRCR (W)         -S-----I    S: Infrared Receiver Signal Read Enable, ...
+
+$50    IVBLL (R/W)      AAAAAIII    A: Base Address [7:3], I: Number
+$51    IVBLH (R/W)      ENAAAAAA    E: Enable, N: Nest Mode, A: Base Address [13:8] (VBLANK Interrupt)
+$52    ILYCL (R/W)      AAAAAIII    ...
+$53    ILYCH (R/W)      ENAAAAAA    ... (Line Counter Compare Interrupt)
+$54    ITIMAL (R/W)     AAAAAIII    ...
+$55    ITIMAH (R/W)     ENAAAAAA    ... (Timer A Interrupt)
+$56    ITIMBL (R/W)     AAAAAIII    ...
+$57    ITIMBH (R/W)     ENAAAAAA    ... (Timer B Interrupt)
+$58    ID1L (R/W)       AAAAAIII    ...
+$59    ID1H (R/W)       ENAAAAAA    ... (DMA 1 Interrupt)
+$5A    ID2L (R/W)       AAAAAIII    ...
+$5B    ID2H (R/W)       ENAAAAAA    ... (DMA 2 Interrupt)
+$5C    ICOML (R/W)      AAAAAIII    ...
+$5D    ICOMH (R/W)      ENAAAAAA    ... (Communication Received Data Interrupt)
+$5E    IEXTL (R/W)      AAAAAIII    ...
+$5F    IEXTH (R/W)      ENAAAAAA    ... (External Interrupt)
+
+$60    D1SAL (R/W)      SSSSSSSS    DMA 1 Source Address [7:0]
+$61    D1SAM (R/W)      SSSSSSSS    DMA 1 Source Address [15:8]
+$62    D1SAH (R/W)      SSSSSSSS    DMA 1 Source Address [23:16]
+$63    D1DAL (R/W)      DDDDDDDD    DMA 1 Destination Address [7:0] / I/O Address A
+$64    D1DAM (R/W)      DDDDDDDD    DMA 1 Destination Address [15:8] / I/O Address B (high byte in word transfers)
+$65    D1DAH (R/W)      0000000D    DMA 1 Destination Address [16]
+$66    D1CNTL (R/W)     CCCCCCCC    DMA 1 Counter [7:0]
+$67    D1CNTH (R/W)     CCCCCCCC    DMA 1 Counter [15:8] (65536-C bytes/words)
+
+$68    D2SAL (R/W)      SSSSSSSS    DMA 2 Source Address [7:0]
+$69    D2SAM (R/W)      SSSSSSSS    DMA 2 Source Address [15:8]
+$6A    D2SAH (R/W)      SSSSSSSS    DMA 2 Source Address [23:16]
+$6B    D2DAL (R/W)      DDDDDDDD    DMA 2 Destination Address [7:0] / I/O Address A
+$6C    D2DAM (R/W)      DDDDDDDD    DMA 2 Destination Address [15:8] / I/O Address B (high byte in word transfers)
+$6D    D2DAH (R/W)      0000000D    DMA 2 Destination Address [16]
+$6E    D2CNTL (R/W)     CCCCCCCC    DMA 2 Counter [7:0]
+$6F    D2CNTH (R/W)     CCCCCCCC    DMA 2 Counter [15:8] (65536-C bytes/words)
+
+$70    BLCR (R/W)       T-BBGGRR    T: Enable PWM Timer, B/G/R: Blue/Green/Red Backlight Control (0/2: Off, 1: On, 3: PWM)
+$71    BLRI (R/W)       ---RRRRR    Red Intensity   (0: Off, 31: Brightest)
+$72    BLGI (R/W)       ---GGGGG    Green Intensity (0: Off, 31: Brightest)
+$73    BLBI (R/W)       ---BBBBB    Blue Intensity  (0: Off, 31: Brightest)
+$74 - $7F    <reserved>
+
+$80    BATSR (R)        S----BBB    S: Sample in Progress, B: Sampled Battery Level (7: full)
+$80    BATCR (W)        S-------    S: Battery Level Sample Init
+$81    CLKSPD (R/W)     ------CC    CPU Clock Speed (0: 8 MHz, 1: 4 MHz, 2: 2 MHz, 3: 32768 Hz)
+$82    VER (R)          00000000    Hexheld SoC Version Number
+
+$83 - $FF    <reserved>
+
+
+LCD Modes:
+
+0 - Pre-render / Active Display
+1 - HBLANK
+2 - Sprite DMA in Progress
+3 - VBLANK
+
+
+PPU Background Modes:
+
+Mode    BG1     BG2     Description
+0       0123    0123    Packed bitmap-friendly tile mode
+1       0123    0123    Planar tile mode
+2       012-    ---3    Planar tile mode (free 2-layer)
+3       01--    --23    Planar tile mode (free 2-layer)
+
+While modes 0 and 1 have only one layer, 2-layer screens can be faked with the "priority" bits in the map tiles.
+
+Submode    Mode 0/1                               Mode 2/3
+0          Horizontal arrangement, BG1X[8] = 0    Normal
+1          Horizontal arrangement, BG1X[8] = 1    Swap BG1 and BG2
+2          Vertical arrangement, BG1Y[8] = 0      Modulate BG2 and low-priority sprites' PAL indexes using BG1 pixels
+3          Vertical arrangement, BG1Y[8] = 1      Swap, modulate BG1 and low-priority sprites' PAL indexes using BG2 pixels
+
+The high-priority background must be actually on for palette modulation to work.
+
+
+Tilemap Access Auto-Increment Procedure:
+
+- Read/Write the tilemap memory byte indicated by the fields in BGXA and BGYA.
+- Invert the A bit in BGXA.
+- If the A bit transitions from 1 to 0:
+   - Increment the tilemap X/Y address by 1, indicated by the auto-increment direction.
+   - If the X/Y address wraps back to 0, increment the other address by 1.
+
+In background modes 0 and 1, the T bit serves as a bit 5 of either the X or Y address, determined by the background submode.
+
+
+Tilemap Format:
+
+          A    76543210
+Packed
+          0    YXXXXXXX    Y: Bitmap Y Position [0], X: Bitmap X Position [7:1] ([0] is always 0)
+          1    PYYYYYYY    P: Priority (0: BG1/high, 1: BG2/low), Y: Bitmap Y Position [7:1]
+4BPP
+          0    CCCCCSHV    C: Character ID [4:0], S: Show Tile, H/V: Horizontal/Vertical Flip
+          1    P--CCCCC    P: Priority (0: BG1/high, 1: BG2/low), C: Character ID [9:5]
+3BPP
+          0    CCCCCSHV    C: Character ID [4:0], S: Show Tile, H/V: Horizontal/Vertical Flip
+          1    P--CCCCC    P: PAL Select [2], C: Character ID [9:5]
+2BPP
+          0    CCCCCSHV    C: Character ID [4:0], S: Show Tile, H/V: Horizontal/Vertical Flip
+          1    PP-CCCCC    P: PAL Select [2:1], C: Character ID [9:5]
+1BPP
+          0    CCCCCSHV    C: Character ID [4:0], S: Show Tile, H/V: Horizontal/Vertical Flip
+          1    PPPCCCCC    P: PAL Select [2:0], C: Character ID [9:5]
+
+
+DMA Transfer Modes:
+
+Mode    Operation
+0       [DxDA-] = [DxSA-]
+1       [DxDA+] = [DxSA+]
+2       [DxDA]  = [DxSA+]
+3       [DxDA+] = [DxSA]
+4       <reserved>
+5       <reserved>
+6       I/O     = [DxSA+]  ($00 - $3F only!)
+7       [DxDA+] = COMRDAT
+
+DMA 2 has priority over DMA 1, and both DMAs stall the CPU while running.

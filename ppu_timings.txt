@@ -1,0 +1,84 @@
+HexHeld PPU timings:
+- PPU clock: 8 MHz
+- Pixel clock: 4 MHz
+- PPU internal RAM speed: 8 MHz
+- VRAM access speed: 4 MHz
+
+- 512 cycles per scanline
+- 262 scanlines per frame (224 visible, the rest is VBlank)
+
+Active scanline timing periods:
+- HBlank front porch - cycles 0-53
+- Pre-render         - cycles 54-87
+- Active screen      - cycles 88-405
+- Pixel flush-out    - cycles 406-423
+- HBlank back porch  - cycles 424-512
+
+NOTES:
+- Some of the object bitplane fetches are dummy fetches and will be internally discarded - specific object rendering timing is still TBD
+
+
+               |            HBlank front porch                        ···
+               +---------------···------------------------------------···
+               |                                                      ···
+               |          1         2         3         4         5   ···
+               |01234567890123456789012345678901234567890123456789012 ···
+---------------+------------------------------------------------------
+  Pixel output |
+ Char boundary |        c               c               c
+---------------+------------------------------------------------------
+Char attr fetch|
+---------------+------------------------------------------------------
+Char bpl fetch |
+ Obj bpl fetch |O O O O O O O O O O O O O O O O O O O O O O O O O O O
+CPU access slot|•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•
+
+               
+               |         |           Pre-render            |            Active Screen              ···
+               +···------+---------------------------------+---------------------------------------···
+               |                                           |           1         1         1       ···
+               |···  5         6         7         8       | 9         0         1         2       ···
+               |··· 901234567890123456789012345678901234567890123456789012345678901234567890123456 ···
+---------------+---------+---------------------------------+---------------------------------------
+  Pixel output |                           P P P P P P P P P P P P P P P P P P P P P P P P P P P P
+ Char boundary |           c               c • • • • • • • c • • • • • • • c • • • • • • • c • • •
+---------------+---------+---------------------------------+---------------------------------------
+Char attr fetch|         0 0     1 1     0 0     1 1     0 0     1 1     0 0     1 1     0 0     1
+---------------+---------+---------------------------------+---------------------------------------
+Char bpl fetch |         -   B   B   B   B   B   B   B   B   B   B   B   B   B   B   B   B   B   B
+ Obj bpl fetch |     O O • O • O • O • O • O • O • O • O • O • O • O • O • O • O • O • O • O • O •
+CPU access slot|    c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•
+
+
+
+               |···ActScreen| Pixel flush-out |   HBlank back porch
+               +···---------+----···----------+--------------------------···
+               |      4     |   4         4   |     4         4
+               |      0     |   1         2   |     3         4
+               |···78901234567890123456789012345678901234567890123456789 ···
+---------------+------------+-----------------+-------------------------
+  Pixel output |    P P P P P P P P P P P P P
+ Char boundary |              c               c               c
+---------------+------------------------------+-------------------------
+Char attr fetch|    1
+---------------+------------+-----------------+-------------------------
+Char bpl fetch |    B   B   B
+ Obj bpl fetch |      O   O   O O O O O O O O O O O O O O O O O O O O O
+CPU access slot|   c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c
+
+
+               |··· HBlank back porch                 |    HBlank front porch
+               +···-----------------------------------+-------------------------···
+               |      4         4         5           |
+               |      8         9         0           |         1         2
+               |···78901234567890123456789012345678901|123456789012345678901234 ···
+---------------+--------------------------------------+------------------------
+  Pixel output |
+ Char boundary |              c               c               c               c
+---------------+--------------------------------------+-------------------------
+Char attr fetch|
+---------------+--------------------------------------+-------------------------
+Char bpl fetch |
+ Obj bpl fetch |    O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O
+CPU access slot|   c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•c•
+

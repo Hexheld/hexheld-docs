@@ -1,0 +1,680 @@
+
+*** INFORMATION ***
+
+This is a fantasy CPU made up by The Beesh-Spweesh, with the spark and some design choices coming from jvsTSX.
+As of June 2022, there has yet to be an emulator or any development tools created.
+
+The CPU has a 24-bit address bus and a 16-bit data bus.
+It uses segmentation in the style of 16-bit x86 Real Mode, a somewhat crude way of addressing the entire space.
+Program code is divided into multiple 64 KB banks, similarly to the 65816.
+
+It also has an 8-bit I/O address space with 8-bit ports.
+
+
+*** REGISTER MODEL ***
+
+15 14 13 12 11 10  9  8  7  6  5  4  3  2  1  0   Main
+[           A          ][           B          ]    AB (Accumulators)
+[           H          ][           L          ]    HL
+[           I          ][           X          ]    IX (Index)
+[           D          ][           S          ]    DS (Data Segment)
+                        [           C          ]    I/O Access
+------------------------------------------------  Shadow
+[           A'         ][           B'         ]    AB'
+[           H'         ][           L'         ]    HL'
+[           I'         ][           X'         ]    IX'
+[           D'         ][           S'         ]    DS'
+                        [           C'         ]
+------------------------------------------------  System
+[                      SP                   ] 0     Stack Pointer
+[                      PC                   ] 0     Program Counter
+[           K          ][           F          ]    KF (Program Counter Bank, Flags)
+                        [           F'         ]    Shadow Flags
+                        [           E          ]    Interrupt Enable Mask
+
+F Register Format:
++-+-+-+-+-+-+-+-+
+|S|Z|I|H|A|V|D|C|
++-+-+-+-+-+-+-+-+
+ | | | | | | | |
+ | | | | | | | +-----  Carry / Borrow
+ | | | | | | +-------  Data Segment Mode
+ | | | | | +---------  Overflow / Parity
+ | | | | +-----------  Segment Adjust (for SAO and SAU instructions)
+ | | | +-------------  Half Carry (for DAA and DAS instructions)
+ | | +---------------  Master Interrupt Enable
+ | +-----------------  Zero
+ +-------------------  Sign (Negative)
+
+The D flag causes S to be treated as 0 in the DS prefix, freeing it for general-purpose use.
+
+The A flag normally is changed when DS-prefixed auto-indexing is used, but some instructions change it implicitly.
+- If both the source and destination operands are DS-prefixed auto-indexes, the A flag state is undefined.
+
+The I flag is not present in F'. Exchanging F and F' will not exchange this flag.
+
+
+*** INSTRUCTION OPERAND ENCODING ***
+
+RM Specifier:
+      +0             +1          +2         +3
+0     imm            [HL+]       [AB]       A / AB
+4     [$01xxxx]      DS:[HL+]    DS:[AB]    B / ASX
+8     [$00xxxx]      [HL-]       [HL]       H / HL
+12    DS:[$xxxx]     DS:[HL-]    DS:[HL]    L / BSX
+16    [IX+imm]       [IX+]       [IX]       I / IX
+20    DS:[IX+imm]    DS:[IX+]    DS:[IX]    X / AZX
+24    [SP+imm]       [IX-]       [DS]       D / DS
+28    -              DS:[IX-]    -          S / SP
+
+Addressing modes without the DS prefix access memory in bank $00.
+
+AZX, ASX, and BSX are 16-bit pseudo-registers which are zero- and sign-extensions of 8-bit accumulators.
+The pseudo-registers, and immediate, are invalid specifications for the destination.
+
+Conditions:
+       Code        Check
+0   -  LT          S != V
+1   -  GE          S == V
+2   -  LE          S != V || Z = 1
+3   -  GT          S == V && Z = 0
+4   -  ULE         C = 1 || Z = 1
+5   -  UGT         C = 0 && Z = 0
+6   -  Z / EQ      Z = 1
+7   -  NZ / NE     Z = 0
+8   -  M           S = 1
+9   -  P           S = 0
+10  -  PE / OV     V = 1
+11  -  PO / NOV    V = 0
+12  -  C / ULT     C = 1
+13  -  NC / UGE    C = 0
+14  -  <unconditional>
+
+
+*** INSTRUCTION OPCODES ***
+
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|           NOP
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|0|0|0|0|0|F|0|C|D|S|I|X|H|L|A|B|           EXS  reglist
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++-+-+-+-+-+-+-+-+---------------+
+|0|0|0|0|0|0|1|r|     pcr8      |           DJNZ  {A/B}, pcr8*2    ; one-extend pcr8 value
++-+-+-+-+-+-+-+-+---------------+
++-+-+-+-+-+-+-+-+---------------+
+|0|0|0|0|0|1|1|r|     pcr8      |           DJNZ  {AB/HL}, pcr8*2  ; one-extend pcr8 value
++-+-+-+-+-+-+-+-+---------------+
++-+-+-+-+-+-+-+-+-+-+-+-+---+-+-+
+|0|0|0|1|0|0|0|0|0|0|0|0|op |0|0|           {HALT/STOP/CCF/SDS}
++-+-+-+-+-+-+-+-+-+-+-+-+---+-+-+
++-+-+-+-+-+-+-+-+-+-+-+-+---+-+-+
+|0|0|0|1|0|0|0|0|0|0|0|0|op |0|1|           {DAA/SAO/DAS/SAU}
++-+-+-+-+-+-+-+-+-+-+-+-+---+-+-+
++-+-+-+-+-+-+-+-+-+-+-+-+---+-+-+
+|0|0|0|1|0|0|0|0|0|0|0|0| r |1|1|  :        REPI  {A/B/H/L}
++-+-+-+-+-+-+-+-+-+-+-+-+---+-+-+
++-+-+-+-+-+-+-+-+-+-+-+-+-------+
+|0|0|0|1|0|0|0|0|0|0|0|1|  imm  |  :        REPI  imm+2
++-+-+-+-+-+-+-+-+-+-+-+-+-------+
++-+-+-+-+-+-+-+-+-+-+-+---------+
+|0|0|0|1|0|0|0|0|0|0|1|rm16 dest|  ...      LDPCA  dest, pcr16
++-+-+-+-+-+-+-+-+-+-+-+---------+
++-+-+-+-+-+-+-+-+-+-+-+---------+
+|0|0|0|1|0|0|0|0|0|1|0|rm16 dest|  ...      LDIXA  dest, simm
++-+-+-+-+-+-+-+-+-+-+-+---------+
++-+-+-+-+-+-+-+-+-+-+-+---------+
+|0|0|0|1|0|0|0|0|0|1|1|rm16 dest|  ...      LDSPA  dest, imm
++-+-+-+-+-+-+-+-+-+-+-+---------+
++-+-+-+-+-+-+-+-+-+-+-+---------+
+|0|0|0|1|0|0|1|0|0|o|0|rm8   src|  ...      {MULU/DIVU}  src
++-+-+-+-+-+-+-+-+-+-+-+---------+
++-+-+-+-+-+-+-+-+-+-+-+---------+
+|0|0|0|1|0|0|1|0|0|o|1|rm16  src|  ...      {MULSW/DIVSW}  src
++-+-+-+-+-+-+-+-+-+-+-+---------+
++-+-+-+-+-+-+-+-----+-+---------+
+|0|0|0|1|0|0|0| src |0|rm8  dest|  ...      LD  dest, {[C+]/F/[C]/C/[C-]/E}  ; src is 2/3/4/5/6/7
++-+-+-+-+-+-+-+-----+-+---------+
++-+-+-+-+-+-+-+-----+-+---------+
+|0|0|0|1|0|0|1|dest |0|rm8   src|  ...      LD  {[C+]/F/[C]/C/[C-]/E}, src   ; dest is 2/3/4/5/6/7
++-+-+-+-+-+-+-+-----+-+---------+
++-+-+-+-+-+-+---+---------------+
+|0|0|0|1|0|1|op |      imm      |           {RESF/DI/SETF/EI}  imm
++-+-+-+-+-+-+---+---------------+
+
++-+-+-+-+-+-+-+-+-----+---------+
+|0|0|1|0|0|0|0|o| imm |rm8  dest|  ...      {INC/DEC}  dest, imm+1
++-+-+-+-+-+-+-+-+-----+---------+
++-+-+-+-+-+-+-+---+-+-+---------+
+|0|0|1|0|0|0|1|op |0|0|rm8  dest|  ...      {NEG/CPL/NGC/CLR}  dest
++-+-+-+-+-+-+-+---+-+-+---------+
++-+-+-+-+-+-+-+-+-----+---------+
+|0|0|1|0|0|1|0|o| imm |rm16 dest|  ...      {INC/DEC}W  dest, imm+1
++-+-+-+-+-+-+-+-+-----+---------+
++-+-+-+-+-+-+-+---+-+-+---------+
+|0|0|1|0|0|1|1|op |0|0|rm16 dest|  ...      {NEG/CPL/NGC/CLR}W  dest
++-+-+-+-+-+-+-+---+-+-+---------+
+
++-+-+-+-+-+-+-+-+-----+---------+
+|0|0|1|1|0|0|0|0| op  |rm8  dest|  ...      {RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL}  dest
++-+-+-+-+-+-+-+-+-----+---------+
++-+-+-+-+-+-+-+-+-----+---------+
+|0|0|1|1|0|1|0|0| op  |rm16 dest|  ...      {RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL}W  dest
++-+-+-+-+-+-+-+-+-----+---------+
++-+-+-+-+-+-+---+-----+---------+
+|0|0|1|1|0|0|op | bit |rm8      |  ...      {BIT/RES/SET}  bit, rm8    ; op is 1/2/3
++-+-+-+-+-+-+---+-----+---------+
++-+-+-+-+-+-+---+-----+-+-+-+-+-+
+|0|0|1|1|0|0|op | bit |1|1|1|1|0|           {BIT/RES/SET}  bit, [C]    ; op is 1/2/3
++-+-+-+-+-+-+---+-----+-+-+-+-+-+
++-+-+-+-+-+-+---+-+-+-+---------+
+|0|0|1|1|0|1|op |r|0|0|rm8      |  ...      {BIT/RES/SET}  {A/B}, rm8  ; op is 1/2/3
++-+-+-+-+-+-+---+-+-+-+---------+
++-+-+-+-+-+-+---+-+-+-+-+-+-+-+-+
+|0|0|1|1|0|1|op |r|0|0|1|1|1|1|0|           {BIT/RES/SET}  {A/B}, [C]  ; op is 1/2/3
++-+-+-+-+-+-+---+-+-+-+-+-+-+-+-+
+
++-+-+-+-+-+-+-+-+---------------+
+|0|1|0|0|0|0|0|o|      imm      |           {LD/ADD}  C, imm
++-+-+-+-+-+-+-+-+---------------+
+
++-+-+-+-+-+-+-+-+-+-+-+---------+
+|0|1|0|0|0|0|1|1|0|0|0|rm16 dest|  ...      POP  dest
++-+-+-+-+-+-+-+-+-+-+-+---------+
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|0|1|0|0|0|0|1|1|0|0|0|1|1|1|1|1|           POP  F
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|0|1|0|0|0|0|1|1|0|0|1|1|1|1|1|1|           POP  GPR
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|0|1|0|0|0|0|1|1|0|1|1|1|1|1|1|1|           POP  ALL
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++-+-+-+-+-+-+-+-+-+-+-+---------+
+|0|1|0|0|0|0|1|1|1|0|0|rm16  src|  ...      PUSH  src
++-+-+-+-+-+-+-+-+-+-+-+---------+
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|0|1|0|0|0|0|1|1|1|0|0|1|1|1|1|1|           PUSH  KF
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|0|1|0|0|0|0|1|1|1|0|1|1|1|1|1|1|           PUSH  GPR
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|0|1|0|0|0|0|1|1|1|1|1|1|1|1|1|1|           PUSH  ALL
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
++-+-+-+-+-+-+-+-+---------------+
+|0|1|0|1|0|0|0|r|     bank      |  a16      LD  [a24], {A/B}
++-+-+-+-+-+-+-+-+---------------+
++-+-+-+-+-+-+-+-+---------------+
+|0|1|0|1|0|0|1|r|     bank      |  a16      LD  {A/B}, [a24]
++-+-+-+-+-+-+-+-+---------------+
++-+-+-+-+-+-+-+-+---------------+
+|0|1|0|1|0|1|0|r|     bank      |  a16      LD  [a24], {AB/HL}
++-+-+-+-+-+-+-+-+---------------+
++-+-+-+-+-+-+-+-+---------------+
+|0|1|0|1|0|1|1|r|     bank      |  a16      LD  {AB/HL}, [a24]
++-+-+-+-+-+-+-+-+---------------+
++-+-+-+-+-+-+---------+---------+
+|0|1|1|0|0|0|rm8  dest|rm8   src|  ...      LD  dest, src
++-+-+-+-+-+-+---------+---------+
++-+-+-+-+-+-+---------+---------+
+|0|1|1|0|0|1|rm16 dest|rm16  src|  ...      LDW  dest, src
++-+-+-+-+-+-+---------+---------+
++-+-+-+-+-+-----+---------------+
+|0|1|1|1|0|  r  |      imm      |           LD  {A/H/I/D/B/L/X/S}, imm
++-+-+-+-+-+-----+---------------+
+
++-+-----+-+-+-+-+---------------+
+|1| op  |0|0|0|r|      imm      |           {ADD/ADC/SUB/SBC/AND/XOR/OR/CP}  {A/B}, imm
++-+-----+-+-+-+-+---------------+
++-+-----+-+-+-+-+-+-+-+---------+
+|1| op  |0|0|1|r|0|0|0|rm8   src|  ...      {ADD/ADC/SUB/SBC/AND/XOR/OR/CP}  {A/B}, src
++-+-----+-+-+-+-+-+-+-+---------+
++-+-----+-+-+-+-+-+-+-+---------+
+|1| op  |0|0|1|r|0|0|1|rm8  dest|  ...      {ADD/ADC/SUB/SBC/AND/XOR/OR/CP}  dest, {A/B}
++-+-----+-+-+-+-+-+-+-+---------+
++-+-+---+-+-+-+-+---------------+
+|1|0|op |0|1|0|r|     uimm8     |           {ADD/ADC/SUB/SBC}  {AB/HL}, uimm8
++-+-+---+-+-+-+-+---------------+
++-+-+---+-+-+-+-+---------------+
+|1|1|op |0|1|0|r|     simm8     |           {AND/XOR/OR/CP}  {AB/HL}, simm8
++-+-+---+-+-+-+-+---------------+
++-+-----+-+-+-+-+-+-+-+---------+
+|1| op  |0|1|1|r|0|0|0|rm16  src|  ...      {ADD/ADC/SUB/SBC/AND/XOR/OR/CP}  {AB/HL}, src
++-+-----+-+-+-+-+-+-+-+---------+
++-+-----+-+-+-+-+-+-+-+---------+
+|1| op  |0|1|1|r|0|0|1|rm16 dest|  ...      {ADD/ADC/SUB/SBC/AND/XOR/OR/CP}  dest, {AB/HL}
++-+-----+-+-+-+-+-+-+-+---------+
+
++-------+-+-+-------------------+
+| cond  |1|0|       pcr10       |           JR  (cond, )pcr10*2  ; sign-extend pcr10 value
++-------+-+-+-------------------+
++-+-+-+-+-+-+-------------------+
+|1|1|1|1|1|0|       pcr10       |           CALLR  pcr10*2       ; sign-extend pcr10 value
++-+-+-+-+-+-+-------------------+
++-------+-+-+-+-+-+-+-+---------+
+| cond  |1|1|0|0|0|0|0|rm16 addr|  ...      JP  (cond, )addr
++-------+-+-+-+-+-+-+-+---------+
++-+-+-+-+-+-+-+-+-+-+-+---------+
+|1|1|1|1|1|1|0|0|0|0|0|rm16 addr|  ...      CALL  addr
++-+-+-+-+-+-+-+-+-+-+-+---------+
++-------+-+-+-+-+-+-+-+---------+
+| cond  |1|1|0|0|1|0|0|rm16 addr|  ...      JPD  (cond, )addr
++-------+-+-+-+-+-+-+-+---------+
++-+-+-+-+-+-+-+-+-+-+-+---------+
+|1|1|1|1|1|1|0|0|1|0|0|rm16 addr|  ...      CALLD  addr
++-+-+-+-+-+-+-+-+-+-+-+---------+
++-------+-+-+-+-+-+-+-+---------+
+| cond  |1|1|0|0|1|1|0|m24  addr|  ...      JPF  (cond, )mem24
++-------+-+-+-+-+-+-+-+---------+
++-+-+-+-+-+-+-+-+-+-+-+---------+
+|1|1|1|1|1|1|0|0|1|1|0|m24  addr|  ...      CALLF  mem24
++-+-+-+-+-+-+-+-+-+-+-+---------+
++-------+-+-+-+-+-+-+-+-+-+-+-+-+
+| cond  |1|1|0|1|0|0|0|0|0|0|0|0|  pcr15    JRL  (cond, )pcr15*2
++-------+-+-+-+-+-+-+-+-+-+-+-+-+
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|1|1|1|1|1|1|0|1|0|0|0|0|0|0|0|0|  pcr15    CALLRL  pcr15*2
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++-------+-+-+-+-+---------------+
+| cond  |1|1|1|0|     bank      |  a16      JPF  (cond, )a24
++-------+-+-+-+-+---------------+
++-+-+-+-+-+-+-+-+---------------+
+|1|1|1|1|1|1|1|0|     bank      |  a16      CALLF  a24
++-+-+-+-+-+-+-+-+---------------+
++-------+-+-+-+-+-+-+-+-+-+-+-+-+
+| cond  |1|1|1|1|0|0|0|0|0|0|0|0|           RET  (cond)
++-------+-+-+-+-+-+-+-+-+-+-+-+-+
++-------+-+-+-+-+-+-+-+-+-+-+-+-+
+| cond  |1|1|1|1|1|0|0|0|0|0|0|0|           RETF  (cond)
++-------+-+-+-+-+-+-+-+-+-+-+-+-+
++-+-+-+-+-+-+-+-+-----+-+-+-+-+-+
+|1|1|1|0|1|1|1|1| int |1|0|0|0|0|           RETI  int
++-+-+-+-+-+-+-+-+-----+-+-+-+-+-+
++-+-+-+-+-+-+-+-+---------------+
+|1|1|1|1|1|1|1|1|      num      |           RST  $FFFnn0
++-+-+-+-+-+-+-+-+---------------+
+
+
+*** INSTRUCTION REPERTOIRE ***
+
+  Instruction   SZIHAVDC   Operation
++-------------+----------+--------------------------------------+
+| ADC         | **-*CV-* | dest += src + CF                     |
++-------------+----------+--------------------------------------+
+ Adds the source operand plus the C flag to the destination.
++-------------+----------+--------------------------------------+
+| ADD         | **-*CV-* | dest += src                          |
++-------------+----------+--------------------------------------+
+ Adds the source operand to the destination.
+ If C is the destination, flags do not change.
++-------------+----------+--------------------------------------+
+| AND         | **--*P-- | dest &= src                          |
++-------------+----------+--------------------------------------+
+ Bitwise ANDs the destination with the source operand.
++-------------+----------+--------------------------------------+
+| BIT         | -*--*--- | ZF = !src8.bit                       |
++-------------+----------+--------------------------------------+
+ Tests a bit of the source operand.
+ If an 8-bit accumulator is specified for the bit number, only its lower 3 bits are used.
++-------------+----------+--------------------------------------+
+| CALL        | -------- | PUSH PC; PC = src16                  |
++-------------+----------+--------------------------------------+
+ Calls a subroutine local to the current program bank.
++-------------+----------+--------------------------------------+
+| CALLD       | -------- | PUSH KF; PUSH PC; PC = src16; K = D  |
++-------------+----------+--------------------------------------+
+ Calls a subroutine anywhere within the address space by setting the program bank to D.
++-------------+----------+--------------------------------------+
+| CALLF       | -------- | PUSH KF; PUSH PC; K:PC = src24       |
++-------------+----------+--------------------------------------+
+ Calls a subroutine anywhere within the address space.
+ This instruction cannot be used with an auto-indexing addressing mode.
++-------------+----------+--------------------------------------+
+| CALLR       | -------- | PUSH PC; PC +- offset                |
++-------------+----------+--------------------------------------+
+ Calls a subroutine local to the current program bank, but with a PC-relative offset.
+ This allows for relocatable code.
++-------------+----------+--------------------------------------+
+| CCF         | -------* | CF = !CF                             |
++-------------+----------+--------------------------------------+
+ Sets the C flag to its complement state.
++-------------+----------+--------------------------------------+
+| CLR         | ----*--- | dest = 0                             |
++-------------+----------+--------------------------------------+
+ Sets the destination to 0. This is shorter than using LD.
++-------------+----------+--------------------------------------+
+| CP          | **-*CV-* | (dest - src)                         |
++-------------+----------+--------------------------------------+
+ Subtracts the source from the destination, but doesn't actually change the destination.
++-------------+----------+--------------------------------------+
+| CPL         | **--*P-- | dest = ~dest                         |
++-------------+----------+--------------------------------------+
+ Sets the destination to its complement state.
++-------------+----------+--------------------------------------+
+| DAA         | -*-----* | A = calculateDAA(A)                  |
++-------------+----------+--------------------------------------+
+ Adjusts the A register to the correct value when doing packed BCD addition.
++-------------+----------+--------------------------------------+
+| DAS         | -*-----* | A = calculateDAS(A)                  |
++-------------+----------+--------------------------------------+
+ Adjusts the A register to the correct value when doing packed BCD subtraction.
++-------------+----------+--------------------------------------+
+| DEC         | **-**V-- | dest -= imm                          |
++-------------+----------+--------------------------------------+
+ Subtracts an immediate value from the destination.
+ The immediate must be in the range 1 to 8, and the C flag isn't changed.
++-------------+----------+--------------------------------------+
+| DEC r16     | ----C--- | r16 -= imm                           |
++-------------+----------+--------------------------------------+
+ Subtracts an immediate value from the destination, setting the A flag for segment adjustment.
+ The immediate must be in the range 1 to 8.
++-------------+----------+--------------------------------------+
+| DI          | -------- | E &= ~imm                            |
++-------------+----------+--------------------------------------+
+ Disables one or more interrupts according to a mask.
++-------------+----------+--------------------------------------+
+| DIVSW       | **--**-- | AB = ABHL % src16; HL = ABHL / src16 |
++-------------+----------+--------------------------------------+
+ Divides ABHL by the source operand, storing the quotient in HL and the remainder in AB.
+ The V flag is set if the quotient is outside the 16-bit signed range.
+ The Z flag is set if the source operand is 0. No division is performed.
++-------------+----------+--------------------------------------+
+| DIVU        | **--**-- | A = AB % src8; B = AB / src8         |
++-------------+----------+--------------------------------------+
+ Divides AB by the source operand, storing the quotient in B and the remainder in A.
+ The V flag is set if the quotient is too large to fit within the 8-bit unsigned range.
+ The Z flag is set if the source operand is 0. No division is performed.
++-------------+----------+--------------------------------------+
+| DJNZ        | -------- | acc -= 1; if (acc != 0) PC -= offset |
++-------------+----------+--------------------------------------+
+ Subtracts 1 from an accumulator, and jumps backwards within the current program bank if it doesn't become 0.
+ The offset is one-extended. Therefore, it is always negative.
++-------------+----------+--------------------------------------+
+| EI          | -------- | E |= imm                             |
++-------------+----------+--------------------------------------+
+ Enables one or more interrupts according to a mask.
++-------------+----------+--------------------------------------+
+| EXS         | **-***** | reglist <=> reglist'                 |
++-------------+----------+--------------------------------------+
+ Exchanges all of the specified registers with their corresponding shadows.
+ You may separate the registers with commas, or even concatenate them together: ABHLIXDSCF
+ Flags only change if F is one of the registers, of course.
++-------------+----------+--------------------------------------+
+| HALT        | -------- | while (!interrupts);                 |
++-------------+----------+--------------------------------------+
+ Suspends execution until an interrupt occurs.
+ The processor goes in a low-power state during this period.
+ The interrupt will be processed and the handler will run before continuing to the next instruction.
++-------------+----------+--------------------------------------+
+| INC         | **-**V-- | dest += imm                          |
++-------------+----------+--------------------------------------+
+ Adds an immediate value to the destination.
+ The immediate must be in the range 1 to 8, and the C flag isn't changed.
++-------------+----------+--------------------------------------+
+| INC r16     | ----C--- | r16 += imm                           |
++-------------+----------+--------------------------------------+
+ Adds an immediate value to the destination, setting the A flag for segment adjustment.
+ The immediate must be in the range 1 to 8.
++-------------+----------+--------------------------------------+
+| JP          | -------- | PC = src16                           |
++-------------+----------+--------------------------------------+
+ Jumps within the current program bank.
+ This instruction can be executed conditionally. If the condition is false, the instruction will be skipped.
++-------------+----------+--------------------------------------+
+| JPD         | -------- | PC = src16; K = D                    |
++-------------+----------+--------------------------------------+
+ Jumps to anywhere within the address space by setting the program bank to D.
+ This instruction can be executed conditionally. If the condition is false, the instruction will be skipped.
++-------------+----------+--------------------------------------+
+| JPF         | -------- | K:PC = src24                         |
++-------------+----------+--------------------------------------+
+ Jumps to anywhere within the address space.
+ This instruction can be executed conditionally. If the condition is false, the instruction will be skipped.
+ This instruction cannot be used with an auto-indexing addressing mode.
++-------------+----------+--------------------------------------+
+| JR          | -------- | PC +- offset                         |
++-------------+----------+--------------------------------------+
+ Jumps within the current program bank with a PC-relative offset. This allows for relocatable code.
+ This instruction can be executed conditionally. If the condition is false, the instruction will be skipped.
++-------------+----------+--------------------------------------+
+| LD          | ----*--- | dest = src                           |
++-------------+----------+--------------------------------------+
+ Sets the destination to the source operand.
++-------------+----------+--------------------------------------+
+| LD F, src8  | ******** | F = src8                             |
++-------------+----------+--------------------------------------+
+ Sets the F register to the source operand. The A flag corresponds to bit 3 of the source.
++-------------+----------+--------------------------------------+
+| LDIXA       | ----O--- | dest16 = IX + simm16                 |
++-------------+----------+--------------------------------------+
+ Sets the destination to an IX-relative effective address.
+ The A flag is set if this address overflows or underflows a segment boundary, for segment adjustment.
++-------------+----------+--------------------------------------+
+| LDPCA       | ----*-1- | dest16 = PC + offset16; D = K        |
++-------------+----------+--------------------------------------+
+ Sets the destination to a PC-relative effective address, and additionally sets up the data segment.
++-------------+----------+--------------------------------------+
+| LDSPA       | ----*--- | dest16 = SP + imm16                  |
++-------------+----------+--------------------------------------+
+ Sets the destination to an SP-relative effective address.
++-------------+----------+--------------------------------------+
+| MULSW       | **--*0-- | ABHL = AB * src16                    |
++-------------+----------+--------------------------------------+
+ Multiplies AB by the source operand, and stores the product in ABHL.
+ This instruction performs signed multiplication.
++-------------+----------+--------------------------------------+
+| MULU        | **--*0-- | AB = A * src8                        |
++-------------+----------+--------------------------------------+
+ Multiplies A by the source operand, and stores the product in AB.
+ This instruction performs unsigned multiplication.
++-------------+----------+--------------------------------------+
+| NEG         | **-*CV-* | dest = 0 - dest                      |
++-------------+----------+--------------------------------------+
+ Sets the destination to its 2's complement.
+ Note that -128 can't be converted to +128 in 8-bit. Similarly, -32768 can't be converted to +32768 in 16-bit.
++-------------+----------+--------------------------------------+
+| NGC         | **-*CV-* | dest = 0 - (dest + CF)               |
++-------------+----------+--------------------------------------+
+ This is used to negate numbers larger than 16 bits.
++-------------+----------+--------------------------------------+
+| NOP         | -------- | ?                                    |
++-------------+----------+--------------------------------------+
+ Does not perform any operation at all. This is used to insert timing delays in the code.
++-------------+----------+--------------------------------------+
+| OR          | **--*P-- | dest |= src                          |
++-------------+----------+--------------------------------------+
+ Bitwise ORs the destination with the source operand.
++-------------+----------+--------------------------------------+
+| POP         | ----*--- | dest16 = [SP]; SP += 2               |
++-------------+----------+--------------------------------------+
+ Pops a word off the stack, and sets the destination to it.
++-------------+----------+--------------------------------------+
+| POP ALL     | ******** | POP ABHLIXDS; ABHLIXDS'; C':C; F':F  |
++-------------+----------+--------------------------------------+
+ Pops all general-purpose registers, the F register, and all of their shadows off the stack.
+ ABHLIXDS is a 64-bit register combination. DS is popped first, then IX, then HL, and lastly AB is popped.
++-------------+----------+--------------------------------------+
+| POP F       | ******** | F = [SP]; SP += 2                    |
++-------------+----------+--------------------------------------+
+ Pops the F register off the stack without changing K.
++-------------+----------+--------------------------------------+
+| POP GPR     | -------- | POP ABHLIXDS; C = [SP]; SP += 2      |
++-------------+----------+--------------------------------------+
+ Pops all main general-purpose registers, including the C register, off the stack.
+ ABHLIXDS is a 64-bit register combination. DS is popped first, then IX, then HL, and lastly AB is popped.
++-------------+----------+--------------------------------------+
+| PUSH        | ----*--- | SP -= 2; [SP] = src16                |
++-------------+----------+--------------------------------------+
+ Pushes the source word operand on the stack.
++-------------+----------+--------------------------------------+
+| PUSH ALL    | -------- | PUSH F':F; C':C; ABHLIXDS'; ABHLIXDS |
++-------------+----------+--------------------------------------+
+ Pushes all general-purpose registers, the F register, and all of their shadows on the stack.
+ ABHLIXDS is a 64-bit register combination. AB is pushed first, then HL, then IX, and lastly DS is pushed.
++-------------+----------+--------------------------------------+
+| PUSH GPR    | -------- | PUSH CZX; PUSH ABHLIXDS              |
++-------------+----------+--------------------------------------+
+ Pushes all main general-purpose registers, including the C register, on the stack.
+ ABHLIXDS is a 64-bit register combination. AB is pushed first, then HL, then IX, and lastly DS is pushed.
++-------------+----------+--------------------------------------+
+| REPI r      | -------- | while (r) {next; r -= 1}             |
++-------------+----------+--------------------------------------+
+ Repeats the next instruction an arbitrary number of times as specified by A, B, H, or L.
+ If the register value is 0, the next instruction will effectively be repeated 256 times.
+ The repetition is interruptible. The return address will be the address of the REPI instruction.
++-------------+----------+--------------------------------------+
+| REPI imm    | -------- | for (i = 0, i < imm, i++) {next}     |
++-------------+----------+--------------------------------------+
+ Repeats the next instruction a specified number of times from 2 to 17.
+ The repetition is not interruptible, as the internal repetition state can't get preserved.
++-------------+----------+--------------------------------------+
+| RES         | -*--*--- | ZF = !dest8.bit; dest8.bit = 0       |
++-------------+----------+--------------------------------------+
+ Tests a bit of the source operand, then resets that bit to 0.
+ If an 8-bit accumulator is specified for the bit number, only its lower 3 bits are used.
++-------------+----------+--------------------------------------+
+| RESF        | ******** | F &= ~imm                            |
++-------------+----------+--------------------------------------+
+ Resets one or more flags to 0, according to a mask.
++-------------+----------+--------------------------------------+
+| RET         | -------- | POP PC                               |
++-------------+----------+--------------------------------------+
+ Returns from a subroutine local to the current program bank.
+ This instruction can be executed conditionally. If the condition is false, the instruction will be skipped.
++-------------+----------+--------------------------------------+
+| RETF        | ******** | POP PC; POP KF                       |
++-------------+----------+--------------------------------------+
+ Returns from a subroutine callable from anywhere within the address space.
+ This is also used to return from non-maskable interrupts.
+ This instruction can be executed conditionally. If the condition is false, the instruction will be skipped.
++-------------+----------+--------------------------------------+
+| RETI        | ******** | POP PC; POP KF; E.int = 1            |
++-------------+----------+--------------------------------------+
+ Returns from a maskable interrupt, and sets its corresponding interrupt enable flag.
++-------------+----------+--------------------------------------+
+| RL          | **--C?-* | CF:dest <<>= 1                       |
++-------------+----------+--------------------------------------+
+ Rotates the destination left by 1 bit, using the C flag.
+ The C flag is set to the original bit 7 of the destination.
++-------------+----------+--------------------------------------+
+| RLC         | **--C?-* | dest <<>= 1                          |
++-------------+----------+--------------------------------------+
+ Rotates the destination left by 1 bit, circular.
+ The C flag is set to the original bit 7 of the destination.
++-------------+----------+--------------------------------------+
+| RR          | **--C?-* | CF:dest >><= 1                       |
++-------------+----------+--------------------------------------+
+ Rotates the destination right by 1 bit, using the C flag.
+ The C flag is set to the original bit 0 of the destination.
++-------------+----------+--------------------------------------+
+| RRC         | **--C?-* | dest >><= 1                          |
++-------------+----------+--------------------------------------+
+ Rotates the destination right by 1 bit, circular.
+ The C flag is set to the original bit 0 of the destination.
++-------------+----------+--------------------------------------+
+| RST         | -------- | PUSH KF; PUSH PC; K:PC = RSTvector   |
++-------------+----------+--------------------------------------+
+ Calls a subroutine starting at one of 256 fixed locations in bank $FF.
++-------------+----------+--------------------------------------+
+| SAO         | -------- | if (AF = 1) D += 1                   |
++-------------+----------+--------------------------------------+
+ Adjusts the D register to handle overflows past the boundary of the data segment.
++-------------+----------+--------------------------------------+
+| SAU         | -------- | if (AF = 1) D -= 1                   |
++-------------+----------+--------------------------------------+
+ Adjusts the D register to handle underflows from the boundary of the data segment.
++-------------+----------+--------------------------------------+
+| SBC         | **-*CV-* | dest -= src + CF                     |
++-------------+----------+--------------------------------------+
+ Subtracts the source operand, and the C flag, from the destination.
++-------------+----------+--------------------------------------+
+| SDS         | ------1- | D = K                                |
++-------------+----------+--------------------------------------+
+ Sets up the data segment to point to the current program bank.
++-------------+----------+--------------------------------------+
+| SET         | -*--*--- | ZF = !dest8.bit; dest8.bit = 1       |
++-------------+----------+--------------------------------------+
+ Tests a bit of the source operand, then sets that bit to 1.
+ If an 8-bit accumulator is specified for the bit number, only its lower 3 bits are used.
++-------------+----------+--------------------------------------+
+| SETF        | ******** | F |= imm                             |
++-------------+----------+--------------------------------------+
+ Sets one or more flags to 1, according to a mask.
++-------------+----------+--------------------------------------+
+| SLA         | **--CV-* | dest <<= 1                           |
++-------------+----------+--------------------------------------+
+ Shifts the destination left by 1 bit.
+ The C flag is set to the original bit 7 of the destination.
++-------------+----------+--------------------------------------+
+| SRA         | **--C0-* | dest >>= 1                           |
++-------------+----------+--------------------------------------+
+ Shifts the destination right by 1 bit, in arithmetic fashion.
+ The C flag is set to the original bit 0 of the destination.
++-------------+----------+--------------------------------------+
+| SRL         | **--C?-* | dest >>>= 1                          |
++-------------+----------+--------------------------------------+
+ Shifts the destination right by 1 bit, in logical fashion.
+ The C flag is set to the original bit 0 of the destination.
++-------------+----------+--------------------------------------+
+| STOP        | -------- | while (!WAKEUP);                     |
++-------------+----------+--------------------------------------+
+ Suspends execution until a special wake-up event occurs.
+ The processor goes in a low-power state during this period.
++-------------+----------+--------------------------------------+
+| SUB         | **-*CV-* | dest -= src                          |
++-------------+----------+--------------------------------------+
+ Subtracts the source operand from the destination.
++-------------+----------+--------------------------------------+
+| SWAP        | **--*--- | dest8 >><= 4                         |
++-------------+----------+--------------------------------------+
+ Exchanges the lower and upper nibbles of the 8-bit destination.
++-------------+----------+--------------------------------------+
+| SWAPW       | **--*--- | dest16 >><= 8                        |
++-------------+----------+--------------------------------------+
+ Exchanges the lower and upper bytes of the 16-bit destination.
++-------------+----------+--------------------------------------+
+| XOR         | **--*P-- | dest ^^= src                         |
++-------------+----------+--------------------------------------+
+ Bitwise XORs the destination with the source operand.
+
+
+*** INTERRUPT VECTORS ***
+
+Vector     Purpose
+$FF0000    Reset
+$FF0008    NMI
+$FF0010    Illegal Instruction Trap (?)
+...        reserved
+
+Maskable interrupts' handlers are configurable to be on any 8-byte boundary within the $FF4000 to $FF7FFF range.
+
+
+*** PROCESSOR DESIGN NOTES ***
+
+- All multi-byte values and operands in memory are little-endian.
+- 16-bit and 24-bit memory accesses must be word-aligned.
+    24-bit reads are really 32-bit, only that the upper 8 bits of the longword are not observed.
+- The stack uses the "full-descending" convention: SP decreases before storing, and increases after loading.
+- The stack is hardwired to be in bank $00.
+- The return address pushed on the stack is the address of the next instruction.
+- When the effective segment offset is greater than $FFFF, it wraps back to the beginning of the segment.
+- Auto-indexing takes place as the last step of instruction execution, with the source address register changed first.
+    For example, `LDW [HL+], [HL+]` really just increases HL by 4, and `LD X, [IX-]` subtracts 1 from the loaded byte.
+
+Instruction encoding:
+- If both the source and destination operand use an additional instruction word, the word for the source comes first.
+- 8-bit immediates stored in an additional instruction word and 15-bit PC-relative offsets are padded with zeroes.
+- PC-relative offsets are relative to the start of the next instruction.
+- PC-relative offsets in JR, CALLR, and DJNZ actually get multiplied by 2 to become added to the PC register.
+    As such, the displacement should be divided by 2 before storing it in the instruction.
+
+Segmentation:
+- When the D flag is 0, the segmented data access address is calculated with: (DS << 8) + offset
+- When the D flag is 1, the segmented data access address is calculated with: (D << 16) | offset
+
+REPI can't apply to the following instructions:
+- Multiplication
+- Division
+- Anything that modifies PC or K
