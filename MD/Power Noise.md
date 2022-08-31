@@ -1,7 +1,7 @@
 
-## Overview
+# Sound - Power Noise
 
-Power Noise is a fantasy sound chip designed by "jvsTSX" and [The Beesh-Spweesh](https://twitter.com/StinkerB06). Its primary application is their [Hexheld](https://github.com/Hexheld) fantasy console.
+Power Noise is a fantasy sound chip designed by jvsTSX and [The Beesh-Spweesh](https://twitter.com/StinkerB06). Hexheld is the primary application for this chip, and is embedded inside the HiveCraft SoC.
 
 There are 5 channels of sound:
 1. Noise
@@ -15,9 +15,9 @@ Noise channels use a [linear feedback shift register (LFSR)](https://en.wikipedi
 
 The slope channel generates timbres with an accumulator and slope offsets. The slope waveform is divided into 2 portions each with a programmable length, offset, and flags. An amplitude modulation feature exists for the noise channels which uses the slope accumulator level.
 
-The PCM channel is an 8-bit [DAC](https://en.wikipedia.org/wiki/Digital-to-analog_converter). The host CPU or DMA controller must supply the samples.
+The PCM channel is an 8-bit [DAC](https://en.wikipedia.org/wiki/Digital-to-analog_converter). The CPU or DMA controller must supply the samples.
 
-There are external audio inputs which are mixed along with the on-board sound channels. On Hexheld in particular, these are signals coming from the inserted Hexridge.
+There are external audio inputs which are mixed along with the on-board sound channels. These are signals coming from the inserted Hexridge.
 
 The output is stereo. While channels are mono, volume controls are provided separately for the left and right sides, allowing for stereo balancing of channels. Apart from this design choice, there are 2 external audio inputs: one for left and one for right.
 
@@ -25,46 +25,46 @@ The output is stereo. While channels are mono, volume controls are provided sepa
 
 ## Register Map
 
-There are 32 8-bit registers which control the aspects of the sound chip:
+There are 32 8-bit registers which control the aspects of the sound chip. They occupy the I/O map:
 
-| | Name | Meaning |
+| Port Number | Name | Meaning |
 | :-: | :- | :- |
-| `$00` | `ACR` | Audio Control Register |
-| `$01` | `NO11` | Noise 1 Fine-Tune |
-| `$02` | `NO12` | Noise 1 Octave |
-| `$03` | `NO13`(R) | Noise 1 Shift Register (Low) |
-| `$04` | `NO14`(R) | Noise 1 Shift Register (High) |
-| `$05` | `NO15` | Noise 1 Tap Locations |
-| `$06` | `NO16` | Noise 1 Volumes |
-| `$07` | `NO17` | Noise 1 Control |
-| `$08` | `LVL` | External Audio/PCM Volumes |
-| `$09` | `NO21` | Noise 2 Fine-Tune |
-| `$0A` | `NO22` | Noise 2 Octave |
-| `$0B` | `NO23`(R) | Noise 2 Shift Register (Low) |
-| `$0C` | `NO24`(R) | Noise 2 Shift Register (High) |
-| `$0D` | `NO25` | Noise 2 Tap Locations |
-| `$0E` | `NO26` | Noise 2 Volumes |
-| `$0F` | `NO27` | Noise 2 Control |
-| `$10` | `DAC` | PCM Sample Input |
-| `$11` | `NO31` | Noise 3 Fine-Tune |
-| `$12` | `NO32` | Noise 3 Octave |
-| `$13` | `NO33`(R) | Noise 3 Shift Register (Low) |
-| `$14` | `NO34`(R) | Noise 3 Shift Register (High) |
-| `$15` | `NO35` | Noise 3 Tap Locations |
-| `$16` | `NO36` | Noise 3 Volumes |
-| `$17` | `NO37` | Noise 3 Control |
-| `$18` | `SCNT`(R) | Slope Accumulator |
-| `$19` | `SLO1` | Slope Fine-Tune |
-| `$1A` | `SLO2` | Slope Octave |
-| `$1B` | `SLO3` | Slope Portion A Duration |
-| `$1C` | `SLO4` | Slope Portion B Duration |
-| `$1D` | `SLO5` | Slope Offsets |
-| `$1E` | `SLO6` | Slope Volumes |
-| `$1F` | `SLO7` | Slope Control |
+| `$20` | `ACR` | Audio Control Register |
+| `$21` | `NO11` | Noise 1 Fine-Tune |
+| `$22` | `NO12` | Noise 1 Octave |
+| `$23` | `NO13`(R) | Noise 1 Shift Register (Low) |
+| `$24` | `NO14`(R) | Noise 1 Shift Register (High) |
+| `$25` | `NO15` | Noise 1 Tap Locations |
+| `$26` | `NO16` | Noise 1 Volumes |
+| `$27` | `NO17` | Noise 1 Control |
+| `$28` | `LVL` | External Audio/PCM Volumes |
+| `$29` | `NO21` | Noise 2 Fine-Tune |
+| `$2A` | `NO22` | Noise 2 Octave |
+| `$2B` | `NO23`(R) | Noise 2 Shift Register (Low) |
+| `$2C` | `NO24`(R) | Noise 2 Shift Register (High) |
+| `$2D` | `NO25` | Noise 2 Tap Locations |
+| `$2E` | `NO26` | Noise 2 Volumes |
+| `$2F` | `NO27` | Noise 2 Control |
+| `$30` | `DAC` | PCM Sample Input |
+| `$31` | `NO31` | Noise 3 Fine-Tune |
+| `$32` | `NO32` | Noise 3 Octave |
+| `$33` | `NO33`(R) | Noise 3 Shift Register (Low) |
+| `$34` | `NO34`(R) | Noise 3 Shift Register (High) |
+| `$35` | `NO35` | Noise 3 Tap Locations |
+| `$36` | `NO36` | Noise 3 Volumes |
+| `$37` | `NO37` | Noise 3 Control |
+| `$38` | `SCNT`(R) | Slope Accumulator |
+| `$39` | `SLO1` | Slope Fine-Tune |
+| `$3A` | `SLO2` | Slope Octave |
+| `$3B` | `SLO3` | Slope Portion A Duration |
+| `$3C` | `SLO4` | Slope Portion B Duration |
+| `$3D` | `SLO5` | Slope Offsets |
+| `$3E` | `SLO6` | Slope Volumes |
+| `$3F` | `SLO7` | Slope Control |
 
-Registers marked with (R) can be read. The registers that are not marked are write-only and are read as the value `$FF`.
+Registers marked with (R) can be read and written. The registers that are not marked are write-only and are read as the value `$FF`.
 
-On Hexheld in particular, the sound registers occupy I/O ports `$20` to `$3F`.
+Since the DMA controller only allows ports `$00` to `$3F` to be used as the destinations of a transfer to I/O, any Power Noise register can be targeted.
 
 
 
@@ -267,7 +267,7 @@ The `SLO7` register manages the operation of the slope channel:
 
 Bits 0 to 5 specify the slope flags. See above for information.
 
-If bit 6 is set in the write, the slope wave generation resets to the first sample of Portion A. This reset is automatically performed on sound chip reset.
+If bit 6 is set in the write, the slope wave generation resets to the first sample of Portion A. This reset is automatically performed on Hexheld system reset.
 
 If bit 7 is clear, the frequency generator is paused, preventing the slope algorithms from working and the slope accumulator from automatically updating.
 
@@ -282,14 +282,14 @@ The upper 4 bits of the slope accumulator value are used as the 4-bit wave ampli
 
 ## Sound Channel 5 (PCM)
 
-This channel outputs an arbitrary 8-bit unsigned amplitude written to the `DAC` register. The sound chip does not automatically modify `DAC` to produce a waveform, so samples must be provided by the host CPU or a DMA controller.
+This channel outputs an arbitrary 8-bit unsigned amplitude written to the `DAC` register. The sound chip does not automatically modify `DAC` to produce a waveform, so samples must be provided by the CPU or DMA controller.
 
 The 8-bit amplitude is multiplied by the 2-bit volume setting in `LVL` to produce the final 10-bit unsigned amplitude value for the channel. The maximum amplitude is `765`.
 
 
-### Hexheld Sound DMA
+### PCM Playback with DMA
 
-On Hexheld in particular, the DMA controller can be configured to deliver samples to `DAC` at the reload frequency of Timer A.
+The Hexheld DMA controller is configurable enough to be able to deliver samples to `DAC` at the reload frequency of Timer A.
 
 The timer is a 13-bit up-counter. It can use any one of the same 8 clock frequencies as the frequency generators. The counter will divide the clock frequency by an amount from 1 to 8,192 to become the frequency to step the DMA transfer at.
 
@@ -315,6 +315,6 @@ NOTE: As the output is stereo, the same mixing algorithms apply for both sides, 
 
 ## Reset
 
-When the sound chip is reset, all registers are initialized with `$00`.
+When the Hexheld system is reset, all Power Noise registers are initialized with `$00`.
 
 Since the slope wave generation resets as well, it may be thought that `SLO7` is initialized with `$40`.
