@@ -10,7 +10,7 @@ The heart of the Hexheld system is the **HiveCraft**—a custom [SoC](https://en
 ## Specifications
 
 ```
-Display         168×224 hexagon screen with 8 grayshades, RGB backlight, optional overlays
+Display         168×224 hexagon (shape and pixel cells) screen with 8 grayshades, RGB backlight, optional overlays
 Aux. Display    8-character 7-segment display, battery level indicator
 Connectivity    Detachable controller, link cable, infrared
 
@@ -84,7 +84,18 @@ It is not recommended to access ports with an undefined purpose, as future revis
 
 When accessing I/O with Pilot CPU instructions, the port number is designated in the `C` register.
 
-When I/O is the destination of a DMA transfer, the upper 2 bits of the port numbers are masked out, limiting the port numbers to range from `$00` to `$3F`.
+When I/O is the destination of a DMA transfer, the upper 2 bits of the port numbers are masked out, limiting the port numbers to range from `$00` to `$3F`. As such, only Radar and Power Noise registers can be targeted.
+
+
+### HiveCraft Version Number
+
+It is possible to detect the current version of the Hexheld hardware:
+
+| Port Number | Name | Meaning |
+| :-: | :- | :- |
+| `$82` | `VER` | HiveCraft Version Number |
+
+This register is read-only. The latest version as of this revision of this document is `$00`. The internal boot program will not start the software on the Hexridge if the `VER` value is less than the version number stored in the ROM header.
 
 
 
@@ -136,7 +147,7 @@ Feature set:
 - Expansion audio mixing from Hexridge
 
 
-### DMA
+### DMA Controller
 
 This component provides 2 flexible [Direct Memory Access (DMA)](https://en.wikipedia.org/wiki/Direct_memory_access) channels.
 
@@ -161,7 +172,7 @@ This component controls the Hexridge interface and ROM wait generation.
 This component is responsible for sending interrupt requests to the CPU, and supplies the necessary information to allow the CPU to run the appropriate interrupt handlers.
 
 
-### Backlight
+### Backlight Controller
 
 This component controls the RGB backlight, and may use [PWM](https://en.wikipedia.org/wiki/Pulse-width_modulation) to achieve varying intensities.
 
