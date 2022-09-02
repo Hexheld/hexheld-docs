@@ -10,7 +10,7 @@ The heart of the Hexheld system is the **HiveCraft**—a custom [SoC](https://en
 ## Specifications
 
 ```
-Display         168×224 hexagon (shape and pixel cells) screen with 8 grayshades, RGB backlight, optional overlays
+Display         168×224 hexagonal (shape and pixel cells) transflective LCD screen with 8 grayshades, RGB backlight, optional overlays
 Aux. Display    8-character 7-segment display, battery level indicator
 Connectivity    Detachable controller, link cable, infrared
 
@@ -56,7 +56,7 @@ Some components use an 8-bit data bus width. If a 16-bit access is performed on 
 
 Hexheld provides 64 KB of RAM. However, the 32 KB halves are separate memory modules:
 - WRAM is embedded inside the HiveCraft chip. It is general-purpose memory and may be organized in any way. Generally, this is the fastest memory type available on Hexheld.
-- VRAM is external from the HiveCraft, and is slower than WRAM by a margin.
+- VRAM is external from the HiveCraft and is slower than WRAM by a margin.
 
 
 
@@ -98,6 +98,26 @@ It is possible to detect the current version of the Hexheld hardware:
 This register is read-only. The latest version as of this revision of this document is `$00`. The internal boot program will not start the software on the Hexridge if the `VER` value is less than the version number stored in the ROM header.
 
 
+## Main display
+
+The main display is a dot-matrix TFT LCD made up of hexagonal pixels arranged in a staggered hexagonal array. The screen profile is hexagon-shaped, with pixels outside the boundary omitted.
+
+### Screen geometry and profile
+
+Both the screen profile and the pixel cell profile are shaped like perfect hexagons, with equilateral sides and 120º internal corner angles, and vertically-oriented (corner tips facing up and down, flat sides facing left and right).
+
+The screen resolution is measured in 168 pixels horizontally (edge-to-edge) and 224 pixels vertically down the center (tip-to-tip). Odd pixel lines are shifted to the right by half a pixel and the protruding corners from each line's pixels interlock between the adjacent lines' pixels.
+
+The PPU drives the screen as if it were an ordinary 168x224 dot-matrix LCD with rectangularly-distributed dots. The software is responsible for providing graphics data that takes the screen geometry into consideration (particularly the fact that odd lines are offset by half a pixel).
+
+### Backlight
+
+The screen backlight is comprised of 3 individually driven channels of red, green and blue LED arrays. Each channel is driven by the HiveCraft's integrated backlight controller and can be individually toggled on/off or dimmed using PWM to generate different color combinations.
+
+The red and green LED arrays are comprised of high-brightness gallium phosphide diodes while the blue array is comprised of contemporary state-of-the-art high-efficiency gallium nitride diodes. The drive current of the backlight LEDs is calibrated such that when all channels are driven simultaneously at full duty cycle, the resulting white light's chromaticity is correlated to the CIE D50 Illuminant standard.
+
+Special consideration should be taken regarding the green channel of the backlight due to its output hue which is limited by the contemporarily available technology. Rather than a lime-green or emerald-green hue as commonly seen on CRT phosphors, the gallium phosphide green LEDs in the backlight emit a yellow-green hue.
+
 
 ## HiveCraft Components
 
@@ -111,8 +131,8 @@ Feature set:
 - Shadow registers (values exchangeable with main registers)
 - Segmentation scheme with 16-bit segment and 16-bit offset values
 - Banking scheme with 8-bit bank and 16-bit offset values
-- Repetition feature to reduce code size
-- Pipelined execution
+- Repetition prefix to reduce code size
+- 3-stage pipeline, prefetch queue, "always-take" branch prediction
 
 Instructions:
 - Size varying from 1 to 3 16-bit words
@@ -128,10 +148,12 @@ An LCD controller and picture processor.
 
 Feature set:
 - 1BPP to 4BPP planar characters (8×8 size) and 4BPP packed bitmap graphics
-- 2 tile layers with a selection of operating modes
-- 128 sprites on-screen, size from 8×8 to 8×32
-- Programmable rectangular layer/sprite clipping region
-- 8 grayshades with 16 palette entries
+- 2 character layers with a selection of operating modes and layer mixing settings
+- 128 objects on-screen, size from 8×8 to 8×32, selectable color depths from 1BPP to 4BPP per object, automatic object attribute DMA
+- Internal memory for character and object attribute, external memory access for pixel data
+- Programmable rectangular layer/object clipping region
+- 16-entry palette with 3 bits (8 possible grayshades) per entry
+- Integrated dot-matrix LCD driver for the main display, integrated driver for the aux (segment/battery) displays
 - Line counter compare function
 
 
@@ -140,10 +162,10 @@ Feature set:
 A 5-channel programmable sound generator.
 
 Feature set:
-- 3 noise channels (LFSR synthesis)
-- 1 "slope" channel
-- 1 PCM channel
-- Stereo volumes/balancing
+- 3 "noise" channels (programmable LFSR synthesis)
+- 1 "slope" channel, can modulate the amplitude of one or more of the "noise" channels
+- 1 DAC channel, can be DMA-driven for PCM sample playback
+- Stereo mixing/balancing
 - Expansion audio mixing from Hexridge
 
 
@@ -157,14 +179,14 @@ This component provides 2 flexible [Direct Memory Access (DMA)](https://en.wikip
 These are 2 13-bit up-counters, lettered A and B, which may generate periodic interrupts among other roles.
 
 
-### Communication
+### Serial interfaces
 
 These components send out and receive in bytes bit-wise over the connected link cable, and control the infrared light transmitter/receiver on the Hexheld unit.
 
 
 ### Hexridge Interface
 
-This component controls the Hexridge interface and ROM wait generation.
+This component controls the Hexridge interface and ROM wait state generation.
 
 
 ### Interrupt Controller
@@ -174,9 +196,21 @@ This component is responsible for sending interrupt requests to the CPU, and sup
 
 ### Backlight Controller
 
-This component controls the RGB backlight, and may use [PWM](https://en.wikipedia.org/wiki/Pulse-width_modulation) to achieve varying intensities.
+This component controls the color and brightness of the screen's RGB backlight, and is capable of using [PWM](https://en.wikipedia.org/wiki/Pulse-width_modulation) to dim the separate red, green and blue channels of the backlight in order to achieve varying hues and intensities.
+
+Feature set:
+- Software control over backlight state (off/on/PWM) for each individual red/green/blue channel
+- Per-channel PWM duty cycle control with 5-bit intensity per channel
+- 33 individually-assignably intensities per red/green/blue channel (0-31 PWM + "32" fully-on)
+- Approximately 36000 different backlight setting combinations
+- 1024 Hz PWM cycle rate (32768 Hz master cycle rate)
 
 
 ### Battery ADC
 
-This component measures the incoming battery voltage, and accordingly updates the battery level indicator on the Hexheld unit. The software may read the battery level.
+This component measures the incoming battery voltage, and accordingly updates the battery level indicator on the Hexheld unit.
+
+Feature set:
+- Software-triggered battery level sampling
+- 8-level state-of-charge estimation using internal look-up tables
+- Allows software to read out the determined battery level
