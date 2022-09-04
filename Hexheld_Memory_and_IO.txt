@@ -44,9 +44,9 @@ Sprite List Table Format:
 
 base + 0   + spriteNo    XXXXXXXX    X Position ($00 to $FF: -8 to +247)
 base + 128 + spriteNo    YYYYYYYY    Y Position ($00 to $DF: 0 to +223, $E0 to $FF: -32 to -1)
-base + 256 + spriteNo    CCCCCPHV    C: Character ID [4:0], P: Priority (0: high, 1: low), H/V: Horizontal/Vertical Flip
-base + 384 + spriteNo    PPPCCCCC    P: PAL Select (same as with BG tiles), C: Character ID [9:5]
-base + 512 + spriteNo    E--HHBBB    E: Mark End of Sprite List, H: Height, B: BPP Setting
+base + 256 + spriteNo    CCCCCPHV    C: Base Character ID [4:0], P: Priority (0: high, 1: low), H/V: Horizontal/Vertical Flip
+base + 384 + spriteNo    PPPCCCCC    P: PAL Select (same as with 1/2/3BPP BG tiles), C: Base Character ID [9:5]
+base + 512 + spriteNo    E-CHHBBB    E: Mark End of Sprite List, C: Enable Odd Y Position Correction, H: Height, B: BPP Setting
 
 Heights:
 0 - 8 pixels  (1 character)
@@ -59,13 +59,13 @@ Sprites with the "end" flag set are not displayed, and sprites with higher index
 BPP Settings:
      Depth    Planes Enabled
 0    1BPP     0---
-1    1BPP     ---3
-2    2BPP     01--
-3    2BPP     --23
-4    3BPP     012-
-5    3BPP     -123
-6    4BPP     0123
-7    <reserved>
+1    1BPP     -1--
+2    1BPP     --2-
+3    1BPP     ---3
+4    2BPP     01--
+5    2BPP     --23
+6    3BPP     012-
+7    4BPP     0123
 
 Sprites with a higher number have priority over those with a lower number, when set to the same priority.
 Furthermore, sprites dominate background tiles on the same priority.
@@ -84,8 +84,8 @@ $02    BGXA (R/W)       -TXXXXXA    T: Tilemap Number (0: BG1, 1: BG2), X: Tilem
 $03    BGYA (R/W)       D--YYYYY    D: Auto-Increment Direction (0: X, 1: Y), Y: Tilemap Y Position
 $04    BGDAT (R/W)      DDDDDDDD    Tilemap RAM Data Read/Write
 $05    SDMA (W)         ---SSSSS    Init Sprite DMA to run at start of next/upcoming VBLANK (base = $008000 + S*1024)
-$06    VMOD (W)         WOBASSMM    W/O/B/A: Window/Sprites/BG2/BG1 Enable, S: Background Submode, M: Background Mode
-$07    WINIO (W)        -III-OOO    I/O: Show Sprites/BG2/BG1 Inside/Outside Window
+$06    PMODL (W)        WOBASSMM    W/O/B/A: Window/Sprites/BG2/BG1 Enable, S: Background Submode, M: Background Mode
+$07    PMODH (W)        BAIIIOOO    B/A: Enable BG2/BG1 Odd Y Scroll Correction, I/O: Show Sprites/BG2/BG1 Inside/Outside Window
 
 $08    WINL (W)         LLLLLLLL    Window Left Edge Position
 $09    WINT (W)         TTTTTTTT    Window Top Edge Position
