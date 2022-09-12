@@ -44,14 +44,30 @@ F Register Format:
  | | | +-------------  Half Carry (for DAA and DAS instructions)
  | | +---------------  Master Interrupt Enable
  | +-----------------  Zero
- +-------------------  Sign (Negative)
+ +-------------------  Sign / Negative
 
-The D flag causes S to be treated as 0 in the DS prefix, freeing it for general-purpose use.
+The D flag causes the S register to be treated as $00 in "DS:" addressing modes, freeing it for general-purpose use.
 
-The A flag normally is changed when DS-prefixed auto-indexing is used, but some instructions change it implicitly.
-- If both the source and destination operands are DS-prefixed auto-indexes, the A flag state is undefined.
+The A flag normally is changed whenever auto-indexing with "DS:" is used, but some instructions change it implicitly.
+- If both the source and destination operands are "DS:" auto-indexes, the A flag state is undefined.
 
 The I flag is not present in F'. Exchanging F and F' will not exchange this flag.
+
+
+*** Z REGISTERS ***
+
+These are sixteen 16-bit virtual registers which are mapped in the first 32 bytes of memory, named Z0 to Z15.
+
+The low or high 8-bit half of a Z register is specifiable by suffixing "L" or "H" to the register's name.
+
+Mapping:
+           8-bit    16-bit
+$000000    Z0L      Z0
+$000001    Z0H
+$000002    Z1L      Z1
+...
+$00001E    Z15L     Z15
+$00001F    Z15H
 
 
 *** INSTRUCTION OPERAND ENCODING ***
@@ -67,27 +83,66 @@ RM Specifier:
 24    [SP+imm]       [IX-]       [DS]       D / DS
 28    -              DS:[IX-]    -          S / SP
 
-Addressing modes without the DS prefix access memory in bank $00.
+Addressing modes without "DS:" access memory in bank $00.
 
 AZX, ASX, and BSX are 16-bit pseudo-registers which are zero- and sign-extensions of 8-bit accumulators.
-The pseudo-registers, and immediate, are invalid specifications for the destination.
+Pseudo-registers and immediate are invalid specifications for the destination.
+
+Immediate, auto-indexes, and registers are invalid specifications for the JPF/CALLF 24-bit memory operand.
+
+ZM Specifier:
++-+-+-+-------+-+
+|0|0|d|   n   |0|    [{Zn+/Zn-}]
++-+-+-+-------+-+
++-+-+-+-------+-+
+|0|0|d|   n   |1|    DS:[{Zn+/Zn-}]
++-+-+-+-------+-+
++-+-+-+-------+-+
+|0|1|0|   n   |0|    [Zn+IX]
++-+-+-+-------+-+
++-+-+-+-------+-+
+|0|1|0|   n   |1|    DS:[Zn+IX]
++-+-+-+-------+-+
++-+-+-+-------+-+
+|0|1|1|   n   |0|    [Zn]
++-+-+-+-------+-+
++-+-+-+-------+-+
+|0|1|1|   n   |1|    DS:[Zn]
++-+-+-+-------+-+
++-+-+-+---------+
+|1|0|r|  uimm5  |    [{IX/SP}+uimm5]
++-+-+-+---------+
++-+-+-+---------+
+|1|1|0|  uimm5  |    DS:[IX+uimm5]
++-+-+-+---------+
++-+-+-+-------+-+
+|1|1|1|   n   |0|    ZnL  ; 8-bit LD
++-+-+-+-------+-+
++-+-+-+-------+-+
+|1|1|1|   n   |1|    ZnH  ; 8-bit LD
++-+-+-+-------+-+
++-+-+-+-------+-+
+|1|1|1|   n   |0|    Zn   ; 16-bit LD
++-+-+-+-------+-+
+
+Addressing modes without "DS:" access memory in bank $00.
 
 Conditions:
        Code        Check
 0   -  LT          S != V
 1   -  GE          S == V
-2   -  LE          S != V || Z = 1
-3   -  GT          S == V && Z = 0
-4   -  ULE         C = 1 || Z = 1
-5   -  UGT         C = 0 && Z = 0
-6   -  Z / EQ      Z = 1
-7   -  NZ / NE     Z = 0
-8   -  M           S = 1
-9   -  P           S = 0
-10  -  PE / OV     V = 1
-11  -  PO / NOV    V = 0
-12  -  C / ULT     C = 1
-13  -  NC / UGE    C = 0
+2   -  LE          S != V || Z == 1
+3   -  GT          S == V && Z == 0
+4   -  ULE         C == 1 || Z == 1
+5   -  UGT         C == 0 && Z == 0
+6   -  Z / EQ      Z == 1
+7   -  NZ / NE     Z == 0
+8   -  M           S == 1
+9   -  P           S == 0
+10  -  PE / OV     V == 1
+11  -  PO / NOV    V == 0
+12  -  C / ULT     C == 1
+13  -  NC / UGE    C == 0
 14  -  <unconditional>
 
 
@@ -204,16 +259,16 @@ Conditions:
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 +-+-+-+-+-+-+-+-+---------------+
-|0|1|0|1|0|0|0|r|     bank      |  a16      LD  [a24], {A/B}
+|0|1|0|1|0|0|0|r|zm8        dest|           LD  dest, {A/B}
 +-+-+-+-+-+-+-+-+---------------+
 +-+-+-+-+-+-+-+-+---------------+
-|0|1|0|1|0|0|1|r|     bank      |  a16      LD  {A/B}, [a24]
+|0|1|0|1|0|0|1|r|zm8         src|           LD  {A/B}, src
 +-+-+-+-+-+-+-+-+---------------+
 +-+-+-+-+-+-+-+-+---------------+
-|0|1|0|1|0|1|0|r|     bank      |  a16      LD  [a24], {AB/HL}
+|0|1|0|1|0|1|0|r|zm16       dest|           LD  dest, {AB/HL}
 +-+-+-+-+-+-+-+-+---------------+
 +-+-+-+-+-+-+-+-+---------------+
-|0|1|0|1|0|1|1|r|     bank      |  a16      LD  {AB/HL}, [a24]
+|0|1|0|1|0|1|1|r|zm16        src|           LD  {AB/HL}, src
 +-+-+-+-+-+-+-+-+---------------+
 +-+-+-+-+-+-+---------+---------+
 |0|1|1|0|0|0|rm8  dest|rm8   src|  ...      LD  dest, src
@@ -330,7 +385,6 @@ Conditions:
 | CALLF       | -------- | PUSH KF; PUSH PC; K:PC = src24       |
 +-------------+----------+--------------------------------------+
  Calls a subroutine anywhere within the address space.
- This instruction cannot be used with an auto-indexing addressing mode.
 +-------------+----------+--------------------------------------+
 | CALLR       | -------- | PUSH PC; PC +- offset                |
 +-------------+----------+--------------------------------------+
@@ -432,7 +486,6 @@ Conditions:
 +-------------+----------+--------------------------------------+
  Jumps to anywhere within the address space.
  This instruction can be executed conditionally. If the condition is false, the instruction will be skipped.
- This instruction cannot be used with an auto-indexing addressing mode.
 +-------------+----------+--------------------------------------+
 | JR          | -------- | PC +- offset                         |
 +-------------+----------+--------------------------------------+
@@ -653,7 +706,7 @@ Maskable interrupts' handlers are configurable to be on any 8-byte boundary with
 
 *** PROCESSOR DESIGN NOTES ***
 
-- All multi-byte values and operands in memory are little-endian.
+- All instruction words and multi-byte values in memory are little-endian.
 - 16-bit and 24-bit memory accesses must be word-aligned.
     24-bit reads are really 32-bit, only that the upper 8 bits of the longword are not observed.
 - The stack uses the "full-descending" convention: SP decreases before storing, and increases after loading.
@@ -664,7 +717,7 @@ Maskable interrupts' handlers are configurable to be on any 8-byte boundary with
     For example, `LDW [HL+], [HL+]` really just increases HL by 4, and `LD X, [IX-]` subtracts 1 from the loaded byte.
 
 Instruction encoding:
-- If both the source and destination operand use an additional instruction word, the word for the source comes first.
+- If both the left and right operands use an additional instruction word, the word for the right operand comes first.
 - 8-bit immediates stored in an additional instruction word and 15-bit PC-relative offsets are padded with zeroes.
 - PC-relative offsets are relative to the start of the next instruction.
 - PC-relative offsets in JR, CALLR, and DJNZ actually get multiplied by 2 to become added to the PC register.
@@ -673,8 +726,9 @@ Instruction encoding:
 Segmentation:
 - When the D flag is 0, the segmented data access address is calculated with: (DS << 8) + offset
 - When the D flag is 1, the segmented data access address is calculated with: (D << 16) | offset
+- 17-bit direct addresses are internally split up into segment (either $0000 or $0100) and offset values.
 
-REPI can't apply to the following instructions:
+REPI cannot apply to the following instructions:
 - Multiplication
 - Division
 - Anything that modifies PC or K
