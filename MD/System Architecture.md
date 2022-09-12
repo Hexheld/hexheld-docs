@@ -55,7 +55,7 @@ Some components use an 8-bit data bus width. If a 16-bit access is performed on 
 ### RAM
 
 Hexheld provides 64 KB of RAM. However, the 32 KB halves are separate memory modules:
-- WRAM is embedded inside the HiveCraft chip. It is general-purpose memory and may be organized in any way. Generally, this is the fastest memory type available on Hexheld.
+- WRAM is embedded inside the HiveCraft chip. It is general-purpose memory, and for the most part, may be organized in any way. Generally, this is the fastest memory type available on Hexheld.
 - VRAM is external from the HiveCraft and is slower than WRAM by a margin.
 
 
@@ -137,6 +137,7 @@ Feature set:
 - Shadow registers (values exchangeable with main registers)
 - Segmentation scheme with 16-bit segment and 16-bit offset values
 - Banking scheme with 8-bit bank and 16-bit offset values
+- 32-byte (16-word) "zero page" memory register file to make up for lack of registers
 - Repetition prefix to reduce code size
 - 3-stage pipeline, prefetch queue, "always-take" branch prediction
 
