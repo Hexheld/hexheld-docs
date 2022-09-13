@@ -631,11 +631,11 @@ Conditions:
 +-------------+----------+--------------------------------------+
  Calls a subroutine starting at one of 256 fixed locations in bank $FF.
 +-------------+----------+--------------------------------------+
-| SAO         | -------- | if (AF == 1) D += 1                   |
+| SAO         | -------- | if (AF == 1) D += 1                  |
 +-------------+----------+--------------------------------------+
  Adjusts the D register to handle overflows past the boundary of the data segment.
 +-------------+----------+--------------------------------------+
-| SAU         | -------- | if (AF == 1) D -= 1                   |
+| SAU         | -------- | if (AF == 1) D -= 1                  |
 +-------------+----------+--------------------------------------+
  Adjusts the D register to handle underflows from the boundary of the data segment.
 +-------------+----------+--------------------------------------+
