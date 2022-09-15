@@ -119,9 +119,13 @@ The PPU drives the screen as if it were an ordinary 168×224 dot-matrix LCD with
 
 The screen backlight is comprised of 3 individually-driven channels of red, green, and blue LED arrays. Each channel is driven by the HiveCraft's integrated backlight controller, and they can individually be toggled on/off or dimmed using [PWM](https://en.wikipedia.org/wiki/Pulse-width_modulation) to generate different color combinations.
 
-The red and green LED arrays are comprised of high-brightness gallium phosphide diodes, while the blue array is comprised of contemporary state-of-the-art high-efficiency gallium nitride diodes. The drive current of the backlight LEDs is calibrated such that when all channels are driven simultaneously at full duty cycle, the resulting white light's chromaticity is correlated to the **CIE D50 Illuminant** standard.
+The red and green LED arrays are comprised of high-brightness gallium phosphide diodes, while the blue array is comprised of contemporary state-of-the-art high-efficiency gallium nitride diodes. The drive current of the backlight LEDs is calibrated such that when the channels are driven simultaneously, with red being at 50% duty cycle and green/blue being at full duty cycle, the resulting white light's chromaticity is correlated to the **CIE D50 Illuminant** standard.
 
-Special consideration should be taken regarding the green channel of the backlight due to its output hue which is limited by the contemporarily-available technology. Rather than a lime-green or emerald-green hue (as commonly seen on CRT phosphors), the gallium phosphide green LEDs in the backlight emit a yellow-green hue.
+In other words, white light is produced whenever the red channel is driven at half of the pulse width of the green and blue channels, while driving all channels at the same intensity results in reddish-tinted white light.
+
+Special consideration should be taken regarding the green channel of the backlight due to its output hue which is limited by the contemporarily-available technology. Rather than a lime-green or emerald-green hue (as commonly seen on CRT phosphors), the gallium phosphide green LEDs in the backlight emit a yellow-green hue. For this reason, combining the green and blue channels result in pale cyan light colors rather than vivid ones.
+
+It's for the same reason above that the red channel is calibrated to two times the necessary continuous current to produce white light - this allows it to produce a vivid magenta hue when combined with blue at full intensities, and a vivid golden yellow hue when combined with green at full intensities - while otherwise it'd only be able to produce purple and canary yellow under those conditions.
 
 
 
