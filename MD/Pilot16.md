@@ -53,7 +53,7 @@ The `JPF` and `CALLF` instructions with an RM operand allow 24-bit data to be re
 
 Technically, these are 32-bit reads, but the upper 8 bits of the 32-bit value are not observed. The 16-bit word halves of the value are read independently with the low word read first. As Hexheld uses a [little endian](https://en.wikipedia.org/wiki/Endianness) model for multi-byte values, the low word is found at the base address, and the high word follows consecutively.
 
-CAUTION: The processor gets the address of the high word by increasing *only* the offset portion. If the effective offset of the RM operand is `$FFFE` (or `$FFFF` when the word-alignment behavior is considered), the bytes will not be consecutive.
+CAUTION: The processor gets the address of the high word by increasing *only* the offset portion. If the effective offset of the RM operand is `$FFFE` (or `$FFFF` when the word-alignment behavior is considered), the words will not be read consecutively.
 
 
 ### I/O Ports
@@ -382,4 +382,4 @@ CPU operations may be performed on either 8-bit or 16-bit data types. The size i
 
 When writing instructions, size can be specified by suffixing a letter to the instruction's mnemonic: "`B`" for 8-bit or "`W`" for 16-bit. For example, 16-bit `INC` is written as "`INCW`".
 
-NOTE: Operation size is evident if a register operand is present—the register's name implies its size. In some cases (such as a `LD` instruction having both operands be memory accesses), it is not evident. The default operation size is 8-bit.
+NOTE: Operation size is evident if a register operand is present (the register's name implies its size), so the suffix is optional. In some cases (such as a `LD` instruction having both operands be memory accesses), it is not evident. The default operation size is 8-bit.
