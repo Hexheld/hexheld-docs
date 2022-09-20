@@ -293,7 +293,7 @@ The following are the available RM memory and immediate operands:
 | `24` | `[SP+imm]` | `25` | `[IX-]` | `26` | `[DS]` |
 | `28` | Invalid | `29` | `DS:[IX-]` | `30` | Invalid |
 
-- `imm` is a 16-bit unsigned literal value from an additional instruction word. If the operation size is 8-bit, only the lower 8 bits of the literal value are significant.
+- `imm` is a 16-bit unsigned literal value from an additional instruction word. In the immediate addressing mode, if the operation size is 8-bit, only the lower 8 bits of the literal value are significant.
 
 The following are the available RM register operands by operation size:
 
@@ -363,7 +363,7 @@ The size of the accumulator directly influences the operation size.
 
 ## Instruction Syntax
 
-When writing an instruction, its *mnemonic* is written first. If operands are present, they follow the mnemonic and are separated from the mnemonic by a space. If multiple operands are present, they are separated by commas "`,`".
+When writing an instruction, its *mnemonic* is written first. If operands are present, they follow the mnemonic and are separated from the mnemonic by a space. If multiple operands are present, they are separated by commas (`,`).
 
 
 ### Operand Types
