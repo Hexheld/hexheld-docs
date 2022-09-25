@@ -84,13 +84,13 @@ The accumulators are the registers that many arithmetic and logic operations rel
 
 ### Flags' Register (`F`)
 
-This 8-bit register stores various condition code and operating flags.
+This 8-bit register stores various condition code and operating flags:
 
 | Bit 7 | Bit 6 | Bit 5 | Bit 4 | Bit 3 | Bit 2 | Bit 1 | Bit 0 |
 | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | `S` | `Z` | `I` | `H` | `A` | `V` | `D` | `C` |
 
-`C` - Set if an unsigned addition produced a carry or subtraction borrowed, cleared otherwise. Also used by shift and rotate instructions as a bit input/output.
+`C` - Set if an unsigned addition produced a carry or unsigned subtraction borrowed, cleared otherwise. Also used by shift and rotate instructions as a bit input/output.
 
 `D` - Represents the data segment mode. For more information, see **Memory Access**.
 
@@ -177,7 +177,7 @@ Z registers are mapped in memory as follows:
 
 ## Addressing Modes
 
-There are several different types of operands for instructions. These types are collectively the *addressing modes* supported by the CPU.
+Instruction operands come in several varieties. These varieties are collectively the *addressing modes* supported by the CPU.
 
 
 ### Register Direct
@@ -257,8 +257,8 @@ Since the ALU is used to compute the offset, an additional cycle is spent.
 The operand specifies an I/O access. The following variations of I/O addressing are available:
 
 - `[C]` - The port specified by `C` is accessed.
-- `[C+]` - The port specified by `C` is accessed, then `C` is incremented by 1.
-- `[C-]` - The port specified by `C` is accessed, then `C` is decremented by 1.
+- `[C+]` - The port specified by `C` is accessed, then `C` is increased by 1.
+- `[C-]` - The port specified by `C` is accessed, then `C` is decreased by 1.
 
 
 ### Immediate
@@ -310,20 +310,22 @@ The following are the available RM register operands by operation size:
 
 NOTES:
 1. Instructions usually accept only one RM operand, but `LD` instructions can use two. If both operands use an additional instruction word, the word pertaining to the source operand precedes the word pertaining to the destination operand.
-2. Immediate, auto-indexed memory, and register addressing modes are invalid for 24-bit RM operands.
+2. Immediate, auto-indexed memory, and register direct addressing modes are invalid for 24-bit RM operands.
 
-Throughout this document, the following notations for the 5-bit field values are used:
+Throughout this document, the following notations are used for RM operands:
 
-- `sssss` - Source operand.
-- `mmmmm` - Read-modify-write operand.
-- `ddddd` - Destination operand.
+| 5-bit Field Bits | Label | Description |
+| :-: | :-: | :-: |
+| `sssss` | **RM.SRC** | Source operand. |
+| `mmmmm` | **RM.RMW** | Read-modify-write operand. |
+| `ddddd` | **RM.DST** | Destination operand. |
 
 
 ### ZM - Z Register/Memory Operand
 
-A type of operand that relies on Z registers, and can also specify displacement-indexed addressing modes that use a short-form literal value. ZM operands can only be used with `LD` instructions involving accumulators.
+A type of operand that relies on Z registers, and can also specify displacement-indexed addressing modes that use a short-form literal value.
 
-The ZM operand is encoded in the lowest 8 bits of the opcode word:
+The ZM operand is encoded in the lower 8 bits of the opcode word:
 
 | | Syntax |
 | :-: | :- |
@@ -360,6 +362,20 @@ Some instructions operate using accumulator registers. Bits 8 and 10 of the opco
 The size of the accumulator directly influences the operation size.
 
 
+### CFE Operand
+
+A type of operand that relies on the `C`, `F`, and `E` registers. Bits 6 to 8 of the opcode word specify what this operand is:
+
+| | Operand |
+| :-: | :-: |
+| `2` | `[C+]` |
+| `3` | `F` |
+| `4` | `[C]` |
+| `5` | `C` |
+| `6` | `[C-]` |
+| `7` | `E` |
+
+
 
 ## Instruction Syntax
 
@@ -383,3 +399,43 @@ CPU operations may be performed on either 8-bit or 16-bit data types. The size i
 When writing instructions, size can be specified by suffixing a letter to the instruction's mnemonic: "`B`" for 8-bit or "`W`" for 16-bit. For example, 16-bit `INC` is written as "`INCW`".
 
 NOTE: Operation size is evident if a register operand is present (the register's name implies its size), so the suffix is optional. In some cases (such as a `LD` instruction having both operands be memory accesses), it is not evident. The default operation size is 8-bit.
+
+
+
+## Instruction Set - Data Transfer
+
+Instructions in this category copy or exchange values around.
+
+
+### `LD` - Load
+
+Loads the destination operand with a copy of the source operand.
+
+Flags (unless the destination is `F`):
+
+- `SZIH-VDC` - Not modified.
+- `----A---` - Modified if either of the operands is an auto-indexed memory access using the data segment, not modified otherwise.
+
+The following encodings are available for `LD`:
+
+| Opcode Word | Operation Size | Destination | Source |
+| :-: | :-: | :- | :- |
+| `0001 000c cc0d dddd` | 8-bit | RM.DST | CFE Operand |
+| `0001 001c cc0s ssss` | 8-bit | CFE Operand | RM.SRC |
+| `0101 0a0a zzzz zzzz` | 8-bit, 16-bit | ZM Operand | Accumulator |
+| `0101 0a1a zzzz zzzz` | 8-bit, 16-bit | Accumulator | ZM Operand |
+| `0110 00dd ddds ssss` | 8-bit | RM.DST | RM.SRC |
+| `0110 01dd ddds ssss` | 16-bit | RM.DST | RM.SRC |
+| `0111 0000 iiii iiii` | 8-bit | `A` | Immediate |
+| `0111 0100 iiii iiii` | 8-bit | `B` | Immediate |
+| `0111 0001 iiii iiii` | 8-bit | `H` | Immediate |
+| `0111 0101 iiii iiii` | 8-bit | `L` | Immediate |
+| `0111 0010 iiii iiii` | 8-bit | `I` | Immediate |
+| `0111 0110 iiii iiii` | 8-bit | `X` | Immediate |
+| `0111 0011 iiii iiii` | 8-bit | `D` | Immediate |
+| `0111 0111 iiii iiii` | 8-bit | `S` | Immediate |
+| `0100 0000 iiii iiii` | 8-bit | `C` | Immediate |
+
+- The `i` bits represent the immediate value.
+
+NOTE: If the destination is an auto-indexed memory access using the data segment and the source is the `F` register, the register's old value will be written to memory before the `A` flag gets modified.
