@@ -51,7 +51,7 @@ Some instructions do not modify the `A` flag according to the presence of such o
 
 The `JPF` and `CALLF` instructions with an RM operand allow 24-bit data to be read from memory.
 
-Technically, these are 32-bit reads, but the upper 8 bits of the 32-bit value are not observed. The 16-bit word halves of the value are read independently with the low word read first. As Hexheld uses a [little endian](https://en.wikipedia.org/wiki/Endianness) model for multi-byte values, the low word is found at the base address, and the high word follows consecutively.
+Technically, these are 32-bit reads, but the upper 8 bits of the 32-bit value are not observed. The 16-bit word halves of the value are read independently with the low word read first. As Hexheld uses a little-[endian](https://en.wikipedia.org/wiki/Endianness) model for multi-byte values, the low word is found at the base address, and the high word follows consecutively.
 
 CAUTION: The processor gets the address of the high word by increasing *only* the offset portion. If the effective offset of the RM operand is `$FFFE` (or `$FFFF` when the word-alignment behavior is considered), the words will not be read consecutively.
 
@@ -90,7 +90,7 @@ This 8-bit register stores various condition code and operating flags:
 | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | `S` | `Z` | `I` | `H` | `A` | `V` | `D` | `C` |
 
-`C` - Set if an unsigned addition produced a carry or unsigned subtraction borrowed, cleared otherwise. Also used by shift and rotate instructions as a bit input/output.
+`C` - Set if an unsigned addition or subtraction produced a carry, cleared otherwise. Also used by shift and rotate instructions as a bit input/output.
 
 `D` - Represents the data segment mode. For more information, see **Memory Access**.
 
@@ -98,7 +98,7 @@ This 8-bit register stores various condition code and operating flags:
 
 `A` - Serves as the conditional execution flag for the `SAO` and `SAU` instructions.
 
-`H` - Similar to the `C` flag, but is only significant for the lower 4 bits (8-bit size) or 12 bits (16-bit size) of the operands. Serves as an input for the decimal adjust algorithm.
+`H` - Similar to the `C` flag, but is only significant for the lower 4 bits (8-bit size) or 12 bits (16-bit size) of the operands and result. Serves as an input for the decimal adjust algorithm.
 
 `I` - If clear, maskable interrupts are disabled.
 
@@ -123,23 +123,23 @@ The values of shadow registers may be exchanged with main registers using the `E
 
 When referencing shadow registers, their names are the same as the main registers but have an apostrophe (`'`) suffix.
 
-NOTE: `F'` does not include the `I` flag and is instead hardwired to zero. Exchanging `F` and `F'` will exchange all flags except for `I`.
+NOTE: `F'` does not include the `I` flag and is instead hardwired to zero. If `F` is one of the selected registers in an `EXS` instruction, all flags except for `I` will be exchanged.
 
 
 ### Stack Pointer (`SP`)
 
-This is the 16-bit register that points to the most recently-pushed word on the [stack](https://en.wikipedia.org/wiki/Call_stack) contained in bank `$00` of memory.
+This is the 16-bit register that holds the offset portion of the address of the most recently-pushed word on the [stack](https://en.wikipedia.org/wiki/Call_stack) contained in memory. The bank portion is fixed to `$00`.
 
 Push operations decrease this register by 2 before storing the word to memory, and pop operations increase this register by 2 after reading the word from memory. That is, the "full-descending" convention is used.
 
-Due to the requirement of making 16-bit word values in memory word-aligned, bit 0 of this register is hardwired to zero.
+Bit 0 of this register is hardwired to zero. That is, odd values will be rounded down to the next lower even.
 
 
 ### Program Counter (`PC`)
 
 This is the 16-bit register that holds the offset portion of the address of the next instruction in-line.
 
-Due to the requirement of making 16-bit word values in memory word-aligned, bit 0 of this register is hardwired to zero.
+Bit 0 of this register is hardwired to zero. That is, odd values will be rounded down to the next lower even.
 
 
 ### Program Bank (`K`)
@@ -160,7 +160,7 @@ This 8-bit register stores a [bitmask](https://en.wikipedia.org/wiki/Mask_(compu
 
 These 16-bit "registers" reside in the first 32 bytes (16 words) of memory. They are used as scratch storage and can hold offsets for memory accesses.
 
-The high or low 8-bit half of a Z register can be accessed by suffixing "`H`" or "`L`" to the register's name.
+The high or low 8-bit half of a Z register can be specified by suffixing "`H`" or "`L`" to the register's name.
 
 Z registers are mapped in memory as follows:
 
@@ -232,7 +232,7 @@ The register value may be either increased or decreased. The amount is implicit 
 
 When the data segment is used and if the instruction allows, the `A` flag reports whether the register value wrapped and that a segment adjustment is required. For more information, see **Segment Adjust**.
 
-The operand is written the same way as a Register Offset operand, but the register name within the square brackets is immediately followed by a "`+`" or "`-`" symbol to specify auto-indexing. For example, an auto-increase of `IX` with the data segment is written as "`DS:[IX+]`".
+The operand is written the same way as a Register Offset operand, but the register name has a "`+`" or "`-`" suffix. For example, an auto-increase of `IX` with the data segment is written as "`DS:[IX+]`".
 
 
 ### Memory - Displacement Index
@@ -295,7 +295,7 @@ The following are the available RM memory and immediate operands:
 
 - `imm` is a 16-bit unsigned literal value from an additional instruction word. In the immediate addressing mode, if the operation size is 8-bit, only the lower 8 bits of the literal value are significant.
 
-The following are the available RM register operands by operation size:
+The following are the available RM register direct operands by operation size:
 
 | | 8-bit | 16-bit |
 | :-: | :-: | :-: |
@@ -398,7 +398,7 @@ CPU operations may be performed on either 8-bit or 16-bit data types. The size i
 
 When writing instructions, size can be specified by suffixing a letter to the instruction's mnemonic: "`B`" for 8-bit or "`W`" for 16-bit. For example, 16-bit `INC` is written as "`INCW`".
 
-NOTE: Operation size is evident if a register operand is present (the register's name implies its size), so the suffix is optional. In some cases (such as a `LD` instruction having both operands be memory accesses), it is not evident. The default operation size is 8-bit.
+NOTE: Operation size is evident if a register direct operand is present (the register's name implies its size), so the suffix is optional. In some cases (such as a `LD` instruction having both operands be memory accesses), it is not evident. The default operation size is 8-bit.
 
 
 
@@ -439,3 +439,51 @@ The following encodings are available for `LD`:
 - The `i` bits represent the immediate value.
 
 NOTE: If the destination is an auto-indexed memory access using the data segment and the source is the `F` register, the register's old value will be written to memory before the `A` flag gets modified.
+
+
+### `CLR` - Clear
+
+Loads the destination operand with a zero value. This is preferred over `LD ..., 0` as the machine code overhead of the immediate value is avoided.
+
+Flags:
+
+- `SZIH-VDC` - Not modified.
+- `----A---` - Modified if the RM operand is an auto-indexed memory access using the data segment, not modified otherwise.
+
+The following encodings are available for `CLR`:
+
+| Opcode Word | Operation Size | Destination |
+| :-: | :-: | :- |
+| `0010 0011 100d dddd` | 8-bit | RM.DST |
+| `0010 0111 100d dddd` | 16-bit | RM.DST |
+
+
+### `LDIXA`, `LDSPA`, `LDPCA` - Load Relative Address
+
+Adds the `IX`/`SP`/`PC` register and a 16-bit immediate value from an additional instruction word together, storing that sum to the destination operand.
+
+`LDPCA` additionally performs the `SDS` instruction's operation afterwards to configure the data segment to be the same as the current program bank.
+
+Flags:
+
+- `SZIH-V-C` - Not modified.
+- `----A---` - (`LDIXA`) Set if the sum of the unsigned `IX` value and signed immediate value is above `$FFFF` or below `$0000`, cleared otherwise.
+- `----A---` - (`LDSPA`, `LDPCA`) Modified if the RM operand is an auto-indexed memory access using the data segment, not modified otherwise.
+- `------D-` - `LDPCA` sets this flag. `LDIXA` and `LDSPA` leave this flag alone.
+
+These instructions have the following encodings:
+
+| | Opcode Word | Operation Size | Destination | Source |
+| :-: | :-: | :-: | :- | :- |
+| `LDIXA` | `0001 0000 010d dddd` | 16-bit | RM.DST | Immediate |
+| `LDSPA` | `0001 0000 011d dddd` | 16-bit | RM.DST | Immediate |
+| `LDPCA` | `0001 0000 001d dddd` | 16-bit | RM.DST | Immediate |
+
+NOTE: If the RM operand uses an additional instruction word, the word holding the immediate value precedes the word pertaining to the RM operand.
+
+
+### `SDS` - Set Data Segment to Program Bank
+
+Sets the `D` register to the value of the `K` register, and sets the `D` flag to 1.
+
+The opcode word corresponding to `SDS` is `$100C`.
