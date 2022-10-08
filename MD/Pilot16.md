@@ -123,7 +123,7 @@ The values of shadow registers may be exchanged with main registers using the `E
 
 When referencing shadow registers, their names are the same as the main registers but have an apostrophe (`'`) suffix.
 
-NOTE: `F'` does not include the `I` flag and is instead hardwired to zero. If `F` is one of the selected registers in an `EXS` instruction, all flags except for `I` will be exchanged.
+NOTE: `F'` does not include the `I` flag and is instead hardwired to zero. If `F` is one of the selected registers in an `EXS` instruction, the `I` flag will not change.
 
 
 ### Stack Pointer (`SP`)
@@ -519,8 +519,8 @@ The following encodings are available for `PUSH`:
 
 `PUSH ALL` performs multiple push operations in one instruction:
 
-1. Push `(F' << 8) | F'`.
-2. Push `(C' << 8) | C'`.
+1. Push `(F' << 8) | F`.
+2. Push `(C' << 8) | C`.
 3. Push `AB'`.
 4. Push `HL'`.
 5. Push `IX'`.
@@ -577,3 +577,18 @@ Although `F` is an 8-bit register, `POP F` performs a 16-bit pop operation. `F` 
 10. Pop a 10th word. `F` receives the lower 8 bits, and `F'` receives the upper 8 bits, of this word.
 
 NOTE: If the RM operand is `[SP+imm]`, the `SP` register's old value will be used in the offset calculation, before it is increased.
+
+
+### `EXS` - Exchange Shadow Registers
+
+Exchanges the values of one or more main registers with the values of their corresponding shadow registers.
+
+The opcode word for `EXS` has the binary format of `0000 0f0c dsix hlab`. Each bit labeled with a letter corresponds to an 8-bit register with the matching name. If a bit is set, the values of its corresponding main and shadow registers will be exchanged.
+
+The entire list of registers to exchange is specified by one or more operands. Each operand is written like a Register Direct operand, using either a single 8-bit register's name or a concatenation of multiple 8-bit registers' names in any order.
+
+Examples: `EXS A` `EXS DHL` `EXS AB, HL, IX, DS, C, F`
+
+The special situation in which no registers are specified is canonized as the `NOP` instruction.
+
+NOTE: If `F` is one of the specified registers, the `I` flag will not be changed as that is the only flag to not have a shadow.
