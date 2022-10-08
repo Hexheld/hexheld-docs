@@ -546,7 +546,7 @@ The following encodings are available for `POP`:
 
 | Opcode Word | Operation Size | Destination |
 | :-: | :-: | :- |
-| `0100 0011 000d dddd` | 16-bit | RM.SRC |
+| `0100 0011 000d dddd` | 16-bit | RM.DST |
 | `0100 0011 0001 1111` | 16-bit | `F` |
 | `0100 0011 0011 1111` | 16-bit | `GPR` |
 | `0100 0011 0111 1111` | 16-bit | `ALL` |
