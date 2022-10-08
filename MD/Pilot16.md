@@ -130,16 +130,16 @@ NOTE: `F'` does not include the `I` flag and is instead hardwired to zero. If `F
 
 This is the 16-bit register that holds the offset portion of the address of the most recently-pushed word on the [stack](https://en.wikipedia.org/wiki/Call_stack) contained in memory. The bank portion is fixed to `$00`.
 
-Push operations decrease this register by 2 before storing the word to memory, and pop operations increase this register by 2 after reading the word from memory. That is, the "full-descending" convention is used.
+Push operations decrease this register by 2 before storing the word to memory, and pop operations increase this register by 2 after reading the word from memory. That is, the "full-descending" convention is used. Pop operations do not perform any clean-up: the stack memory remains the same after the pop operation completes.
 
-Bit 0 of this register is hardwired to zero. That is, odd values will be rounded down to the next lower even.
+Bit 0 of this register is hardwired to zero. That is, any odd value written into this register will be rounded down to the next lower even.
 
 
 ### Program Counter (`PC`)
 
 This is the 16-bit register that holds the offset portion of the address of the next instruction in-line.
 
-Bit 0 of this register is hardwired to zero. That is, odd values will be rounded down to the next lower even.
+Bit 0 of this register is hardwired to zero. That is, any odd value written into this register will be rounded down to the next lower even.
 
 
 ### Program Bank (`K`)
@@ -448,7 +448,7 @@ Loads the destination operand with a zero value. This is preferred over `LD ...,
 Flags:
 
 - `SZIH-VDC` - Not modified.
-- `----A---` - Modified if the RM operand is an auto-indexed memory access using the data segment, not modified otherwise.
+- `----A---` - Modified if the operand is an auto-indexed memory access using the data segment, not modified otherwise.
 
 The following encodings are available for `CLR`:
 
@@ -482,8 +482,98 @@ These instructions have the following encodings:
 NOTE: If the RM operand uses an additional instruction word, the word holding the immediate value precedes the word pertaining to the RM operand.
 
 
-### `SDS` - Set Data Segment to Program Bank
+### `SDS` - Set Data Segment to Current Program Bank
 
 Sets the `D` register to the value of the `K` register, and sets the `D` flag to 1.
 
 The opcode word corresponding to `SDS` is `$100C`.
+
+
+### `PUSH` - Push Data to Stack
+
+Pushes the source operand's value onto the stack.
+
+Flags:
+
+- `SZIH-VDC` - Not modified.
+- `----A---` - Modified if the operand is an auto-indexed memory access using the data segment, not modified otherwise.
+
+The following encodings are available for `PUSH`:
+
+| Opcode Word | Operation Size | Source |
+| :-: | :-: | :- |
+| `0100 0011 100s ssss` | 16-bit | RM.SRC |
+| `0100 0011 1001 1111` | 16-bit | `KF` |
+| `0100 0011 1011 1111` | 16-bit | `GPR` |
+| `0100 0011 1111 1111` | 16-bit | `ALL` |
+
+- It is not possible for the RM operand to specify `SP` in register direct addressing, as the resulting opcode word coincides with `PUSH KF`.
+
+`PUSH GPR` performs multiple push operations in one instruction to push all general-purpose registers onto the stack:
+
+1. Push the value of the `C` register zero-extended to 16 bits.
+2. `PUSH AB`
+3. `PUSH HL`
+4. `PUSH IX`
+5. `PUSH DS`
+
+`PUSH ALL` performs multiple push operations in one instruction:
+
+1. Push `(F' << 8) | F'`.
+2. Push `(C' << 8) | C'`.
+3. Push `AB'`.
+4. Push `HL'`.
+5. Push `IX'`.
+6. Push `DS'`.
+7. `PUSH AB`
+8. `PUSH HL`
+9. `PUSH IX`
+10. `PUSH DS`
+
+NOTE: If the RM operand is `[SP+imm]`, the `SP` register's old value will be used in the offset calculation, before it is decreased.
+
+
+### `POP` - Pop Data from Stack
+
+Removes data from the top of the stack and stores the data to the destination operand.
+
+Flags:
+
+- `SZIH-VDC` - Not modified.
+- `----A---` - Modified if the operand is an auto-indexed memory access using the data segment, not modified otherwise.
+
+The following encodings are available for `POP`:
+
+| Opcode Word | Operation Size | Destination |
+| :-: | :-: | :- |
+| `0100 0011 000d dddd` | 16-bit | RM.SRC |
+| `0100 0011 0001 1111` | 16-bit | `F` |
+| `0100 0011 0011 1111` | 16-bit | `GPR` |
+| `0100 0011 0111 1111` | 16-bit | `ALL` |
+
+- It is not possible for the RM operand to specify `SP` in register direct addressing, as the resulting opcode word coincides with `POP F`.
+
+Although `F` is an 8-bit register, `POP F` performs a 16-bit pop operation. `F` receives the lower 8 bits of the popped word value.
+
+`POP GPR` performs multiple pop operations in one instruction to pop all general-purpose registers off of the stack:
+
+1. `POP DS`
+2. `POP IX`
+3. `POP HL`
+4. `POP AB`
+5. Pop `C`. Although `C` is an 8-bit register, this is a 16-bit pop operation. `C` receives the lower 8 bits of the popped word value.
+
+`POP ALL` performs multiple pop operations in one instruction:
+
+1. `POP DS`
+2. `POP IX`
+3. `POP HL`
+4. `POP AB`
+5. Pop `DS'`.
+6. Pop `IX'`.
+7. Pop `HL'`.
+8. Pop `AB'`.
+9. Pop a 9th word. `C` receives the lower 8 bits, and `C'` receives the upper 8 bits, of this word.
+10. Pop a 10th word. `F` receives the lower 8 bits, and `F'` receives the upper 8 bits, of this word.
+
+NOTE: If the RM operand is `[SP+imm]`, the `SP` register's old value will be used in the offset calculation, before it is increased.
