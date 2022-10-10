@@ -67,6 +67,8 @@ To access the I/O map, the 8-bit port number must be loaded into the `C` registe
 
 ### General-Purpose Registers
 
+The CPU has 9 general-purpose 8-bit registers organized as follows:
+
 | High | Low | 8-bit Role | 16-bit Role |
 | -: | :- | :-: | :-: |
 | `A` | `B` | Accumulators | Accumulator |
@@ -90,7 +92,7 @@ This 8-bit register stores various condition code and operating flags:
 | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | `S` | `Z` | `I` | `H` | `A` | `V` | `D` | `C` |
 
-`C` - Set if an unsigned addition or subtraction produced a carry, cleared otherwise. Also used by shift and rotate instructions as a bit input/output.
+`C` - Set if an addition or subtraction produced a carry, cleared otherwise. Also used by shift and rotate instructions as a bit input/output.
 
 `D` - Represents the data segment mode. For more information, see **Memory Access**.
 
@@ -148,7 +150,7 @@ This is the 8-bit register that holds the bank portion of the address of the nex
 
 This register is combined with the `F` register to form the 16-bit register pair `KF`.
 
-NOTE: The processor does not perform any adjustment to this register's value to handle crosses of bank boundaries. It is only changed by "far" flow control.
+NOTE: The processor does not perform any adjustment to this register's value in any situation where `PC` wraps around. It is only changed by "far" flow control instructions and by interrupt handlers starting.
 
 
 ### Interrupt Enable Mask (`E`)
@@ -359,7 +361,7 @@ Some instructions operate using accumulator registers. Bits 8 and 10 of the opco
 | `1` | `0` | `AB` |
 | `1` | `1` | `HL` |
 
-The size of the accumulator directly influences the operation size.
+The size of the accumulator directly determines the operation size.
 
 
 ### CFE Operand
@@ -394,7 +396,7 @@ When writing an instruction, its *mnemonic* is written first. If operands are pr
 
 ## Operation Size
 
-CPU operations may be performed on either 8-bit or 16-bit data types. The size is either specified by one of the bits in the opcode word, or is implied in the instruction.
+CPU operations may be performed on either 8-bit or 16-bit data types. The size is either specified by one of the bits in the opcode word, or is implied in the instruction. Size influences the bit width of computations and whether memory operand accesses will be 8-bit or 16-bit.
 
 When writing instructions, size can be specified by suffixing a letter to the instruction's mnemonic: "`B`" for 8-bit or "`W`" for 16-bit. For example, 16-bit `INC` is written as "`INCW`".
 
@@ -408,6 +410,8 @@ Instructions in this category copy or exchange values around.
 
 
 ### `LD` - Load
+
+Operation: `dst = src`
 
 Loads the destination operand with a copy of the source operand.
 
@@ -443,6 +447,8 @@ NOTE: If the destination is an auto-indexed memory access using the data segment
 
 ### `CLR` - Clear
 
+Operation: `dst = 0`
+
 Loads the destination operand with a zero value. This is preferred over `LD ..., 0` as the machine code overhead of the immediate value is avoided.
 
 Flags:
@@ -460,7 +466,9 @@ The following encodings are available for `CLR`:
 
 ### `LDIXA`, `LDSPA`, `LDPCA` - Load Relative Address
 
-Adds the `IX`/`SP`/`PC` register and a 16-bit immediate value from an additional instruction word together, storing that sum to the destination operand.
+Operations: `dst = IX + imm`, `dst = SP + imm`, `dst = PC + imm; D = K; DF = 1`
+
+Adds the `IX`/`SP`/`PC` register and a 16-bit immediate value from an additional instruction word together, storing the sum to the destination operand.
 
 `LDPCA` additionally performs the `SDS` instruction's operation afterwards to configure the data segment to be the same as the current program bank.
 
@@ -479,17 +487,21 @@ These instructions have the following encodings:
 | `LDSPA` | `0001 0000 011d dddd` | 16-bit | RM.DST | Immediate |
 | `LDPCA` | `0001 0000 001d dddd` | 16-bit | RM.DST | Immediate |
 
-NOTE: If the RM operand uses an additional instruction word, the word holding the immediate value precedes the word pertaining to the RM operand.
+NOTE: If the RM operand uses an additional instruction word, that word follows after the word for the immediate operand value.
 
 
 ### `SDS` - Set Data Segment to Current Program Bank
 
-Sets the `D` register to the value of the `K` register, and sets the `D` flag to 1.
+Operation: `D = K; DF = 1`
+
+Sets the `D` register to the value of the `K` register, and sets the `D` flag.
 
 The opcode word corresponding to `SDS` is `$100C`.
 
 
 ### `PUSH` - Push Data to Stack
+
+Operation: `temp = src; SP -= 2; (word)[SP] = temp`
 
 Pushes the source operand's value onto the stack.
 
@@ -534,6 +546,8 @@ NOTE: If the RM operand is `[SP+imm]`, the `SP` register's old value will be use
 
 
 ### `POP` - Pop Data from Stack
+
+Operation: `dst = [SP]; SP += 2`
 
 Removes data from the top of the stack and stores the data to the destination operand.
 
@@ -581,6 +595,8 @@ NOTE: If the RM operand is `[SP+imm]`, the `SP` register's old value will be use
 
 ### `EXS` - Exchange Shadow Registers
 
+Operation: `reglist <=> reglist'`
+
 Exchanges the values of one or more main registers with the values of their corresponding shadow registers.
 
 The opcode word for `EXS` has the binary format of `0000 0f0c dsix hlab`. Each bit labeled with a letter corresponds to an 8-bit register with the matching name. If a bit is set, the values of its corresponding main and shadow registers will be exchanged.
@@ -592,3 +608,43 @@ Examples: `EXS A` `EXS DHL` `EXS AB, HL, IX, DS, C, F`
 The special situation in which no registers are specified is canonized as the `NOP` instruction.
 
 NOTE: If `F` is one of the specified registers, the `I` flag will not be changed as that is the only flag to not have a shadow.
+
+
+
+## Instruction Set - Arithmetic
+
+Instructions in this category perform math operations on data using the ALU.
+
+
+### `ADD`, `ADC` - Add
+
+Operations: `rmw += src`, `rmw += src + CF`
+
+Adds the read-modify-write and source operands together, storing the sum to the read-modify-write operand.
+
+`ADC` adds an extra 1 if the `C` flag is set, allowing the carry output of a previous addition or other operation to be carried into the addition. It essentially performs a 3-addent addition.
+
+Flags:
+
+- `--I---D-` - Not modified.
+- `S-------` - Set if the sum is negative, cleared if not. This directly copies its highest bit.
+- `-Z------` - Set if the sum is zero, cleared if not.
+- `---H----` - Set if the addition carried from bit 3 to bit 4 (8-bit) or from bit 11 to bit 12 (16-bit), cleared otherwise.
+- `----A--C` - Both set if the addition produced a carry, both cleared otherwise.
+- `-----V--` - Set if the sum of the signed operands is outside the signed range of the operation size, cleared otherwise. This is when the operands have the same sign but the result ends up having the opposite sign.
+
+The following encodings are available for these instructions:
+
+| | Opcode Word | Operation Size | Read-Modify-Write | Source |
+| :-: | :-: | :-: | :- | :- |
+| `ADD` | `1000 0a0a iiii iiii` | 8-bit, 16-bit | Accumulator | Immediate |
+| `ADD` | `1000 0a1a 000s ssss` | 8-bit, 16-bit | Accumulator | RM.SRC |
+| `ADD` | `1000 0a1a 001m mmmm` | 8-bit, 16-bit | RM.RMW | Accumulator |
+| `ADD` | `0100 0001 iiii iiii` | 8-bit | `C` | Immediate |
+| `ADC` | `1001 0a0a iiii iiii` | 8-bit, 16-bit | Accumulator | Immediate |
+| `ADC` | `1001 0a1a 000s ssss` | 8-bit, 16-bit | Accumulator | RM.SRC |
+| `ADC` | `1001 0a1a 001m mmmm` | 8-bit, 16-bit | RM.RMW | Accumulator |
+
+- The `i` bits represent the 8-bit immediate value. If the accumulator is 16-bit, the immediate value is zero-extended to 16 bits.
+
+NOTE: `ADD C, imm` does not change any of the flags. The purpose of this variant of `ADD` is to apply an immediate offset relative to a base port number.
