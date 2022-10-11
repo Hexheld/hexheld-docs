@@ -155,7 +155,7 @@ NOTE: The processor does not perform any adjustment to this register's value in 
 
 ### Interrupt Enable Mask (`E`)
 
-This 8-bit register stores a [bitmask](https://en.wikipedia.org/wiki/Mask_(computing)) specifying which maskable interrupts should be enabled. Bit number corresponds to interrupt number. If a bit is set, its corresponding interrupt is enabled.
+This 8-bit register stores a bitmask specifying which maskable interrupts should be enabled. Bit number corresponds to interrupt number. If a bit is set, its corresponding interrupt is enabled.
 
 
 ### Z Registers (`Z0`-`Z15`)
@@ -295,7 +295,7 @@ The following are the available RM memory and immediate operands:
 | `24` | `[SP+imm]` | `25` | `[IX-]` | `26` | `[DS]` |
 | `28` | Invalid | `29` | `DS:[IX-]` | `30` | Invalid |
 
-- `imm` is a 16-bit unsigned literal value from an additional instruction word. In the immediate addressing mode, if the operation size is 8-bit, only the lower 8 bits of the literal value are significant.
+- `imm` is a 16-bit unsigned literal value from an additional instruction word. In the immediate addressing mode, if the operation size is 8-bit, only the lower 8 bits of the instruction word are regarded and its upper 8 bits may contain anything.
 
 The following are the available RM register direct operands by operation size:
 
@@ -631,7 +631,7 @@ Flags:
 - `-Z------` - Set if the sum is zero, cleared if not.
 - `---H----` - Set if the addition carried from bit 3 to bit 4 (8-bit) or from bit 11 to bit 12 (16-bit), cleared otherwise.
 - `----A--C` - Both set if the addition produced a carry, both cleared otherwise.
-- `-----V--` - Set if the sum of the signed operands is outside the signed range of the operation size, cleared otherwise. This is when the operands have the same sign but the result ends up having the opposite sign.
+- `-----V--` - Set if the sum of the signed operands is outside the signed range of the operation size, cleared otherwise. This is when the addents have the same sign but the sum ends up having the opposite sign.
 
 The following encodings are available for these instructions:
 
@@ -645,6 +645,37 @@ The following encodings are available for these instructions:
 | `ADC` | `1001 0a1a 000s ssss` | 8-bit, 16-bit | Accumulator | RM.SRC |
 | `ADC` | `1001 0a1a 001m mmmm` | 8-bit, 16-bit | RM.RMW | Accumulator |
 
-- The `i` bits represent the 8-bit immediate value. If the accumulator is 16-bit, the immediate value is zero-extended to 16 bits.
+- The `i` bits represent the 8-bit immediate value. If the accumulator is 16-bit, the immediate value is zero-extended to 16 bits. If an immediate value above `$00FF` is desired, the RM operand should be used.
 
 NOTE: `ADD C, imm` does not change any of the flags. The purpose of this variant of `ADD` is to apply an immediate offset relative to a base port number.
+
+
+### `SUB`, `SBC` - Subtract
+
+Operations: `rmw -= src`, `rmw -= src + CF`
+
+Subtracts the source operand from the read-modify-write operand, storing the difference to the read-modify-write operand.
+
+`SBC` subtracts an extra 1 if the `C` flag is set, allowing the carry output of a previous subtraction or other operation to be carried into the subtraction. It essentially performs a subtraction using 2 subtrahends.
+
+Flags:
+
+- `--I---D-` - Not modified.
+- `S-------` - Set if the difference is negative, cleared if not. This directly copies its highest bit.
+- `-Z------` - Set if the difference is zero, cleared if not.
+- `---H----` - Set if the subtraction carried from bit 3 to bit 4 (8-bit) or from bit 11 to bit 12 (16-bit), cleared otherwise.
+- `----A--C` - Both set if the subtraction produced a carry, both cleared otherwise.
+- `-----V--` - Set if the difference of the signed operands is outside the signed range of the operation size, cleared otherwise. This is when the difference ends up having the opposite sign of the minuend and the same sign as the subtrahend.
+
+The following encodings are available for these instructions:
+
+| | Opcode Word | Operation Size | Read-Modify-Write | Source |
+| :-: | :-: | :-: | :- | :- |
+| `SUB` | `1010 0a0a iiii iiii` | 8-bit, 16-bit | Accumulator | Immediate |
+| `SUB` | `1010 0a1a 000s ssss` | 8-bit, 16-bit | Accumulator | RM.SRC |
+| `SUB` | `1010 0a1a 001m mmmm` | 8-bit, 16-bit | RM.RMW | Accumulator |
+| `SBC` | `1011 0a0a iiii iiii` | 8-bit, 16-bit | Accumulator | Immediate |
+| `SBC` | `1011 0a1a 000s ssss` | 8-bit, 16-bit | Accumulator | RM.SRC |
+| `SBC` | `1011 0a1a 001m mmmm` | 8-bit, 16-bit | RM.RMW | Accumulator |
+
+- The `i` bits represent the 8-bit immediate value. If the accumulator is 16-bit, the immediate value is zero-extended to 16 bits. If an immediate value above `$00FF` is desired, the RM operand should be used.
