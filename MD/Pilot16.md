@@ -4,7 +4,7 @@
 
 # CPU - Pilot16
 
-Pilot is a fantasy CPU architecture created by [The Beesh-Spweesh](https://twitter.com/StinkerB06) under proposals made by jvsTSX. Hexheld is the primary application for this CPU, where it is embedded inside the HiveCraft SoC and can be clocked at up to 8 MHz.
+Pilot is a fantasy CPU architecture created by [The Beesh-Spweesh](https://twitter.com/StinkerB06) based on some proposals made by jvsTSX. Hexheld is the primary application for this CPU, where it is embedded inside the HiveCraft SoC and can be clocked at up to 8 MHz.
 
 The architecture is 16-bit, influenced by the 8-bit [Zilog Z80](https://en.wikipedia.org/wiki/Zilog_Z80) and likes, but is incompatible with those designs.
 
@@ -39,7 +39,7 @@ This scheme is only used in "`DS:`" addressing modes while the `D` flag is clear
 
 ### Segment Adjust
 
-In order to ease managements of 24-bit linear addresses, the processor provides a *segment adjust* feature consisting of the `A` flag and the `SAO` and `SAU` instructions.
+To ease managements of 24-bit linear addresses, the processor provides a *segment adjust* feature consisting of the `A` flag and the `SAO` and `SAU` instructions.
 
 The `A` flag is modified whenever an auto-index operand using "`DS:`" is present in an instruction, or is left alone otherwise. The flag is set when the offset register overflows past `$FFFF` or underflows below `$0000`, or is cleared otherwise.
 - If both operands are as such, the `A` flag is set to an unpredictable state.
@@ -53,7 +53,7 @@ The `JPF` and `CALLF` instructions with an RM operand allow 24-bit data to be re
 
 Technically, these are 32-bit reads, but the upper 8 bits of the 32-bit value are not observed. The 16-bit word halves of the value are read independently with the low word read first. As Hexheld uses a little-[endian](https://en.wikipedia.org/wiki/Endianness) model for multi-byte values, the low word is found at the base address, and the high word follows consecutively.
 
-CAUTION: The processor gets the address of the high word by increasing *only* the offset portion. If the effective offset of the RM operand is `$FFFE` (or `$FFFF` when the word-alignment behavior is considered), the words will not be read consecutively.
+The processor gets the address of the high word by increasing the linear address by 2. When the effective offset of the RM operand is `$FFFE` (or `$FFFF` when the word-alignment behavior is considered), the high word is read outside the bank/segment window of the RM operand.
 
 
 ### I/O Ports
@@ -67,7 +67,7 @@ To access the I/O map, the 8-bit port number must be loaded into the `C` registe
 
 ### General-Purpose Registers
 
-The CPU has 9 general-purpose 8-bit registers organized as follows:
+The CPU has 9 8-bit registers organized as follows:
 
 | High | Low | 8-bit Role | 16-bit Role |
 | -: | :- | :-: | :-: |
@@ -230,11 +230,13 @@ The operand specifies a memory access using a register's value as the offset por
 
 The offset register may be `HL`, `IX`, or a Z register. For the latter, two additional memory accesses are performed before and after to get the Z register's value and write the auto-index modification, respectively.
 
-The register value may be either increased or decreased. The amount is implicit and depends on the operation size: 1 for 8-bit or 2 for 16-bit. The index occurs immediately after the operand has been read from (source) or written to (read-modify-write or destination).
+The register value may be either increased or decreased. The amount is implicit and depends on the operation size: 1 for 8-bit, 2 for 16-bit, or 4 for 24-bit. The index occurs immediately after the operand has been read from (source) or written to (read-modify-write or destination).
 
 When the data segment is used and if the instruction allows, the `A` flag reports whether the register value wrapped and that a segment adjustment is required. For more information, see **Segment Adjust**.
 
 The operand is written the same way as a Register Offset operand, but the register name has a "`+`" or "`-`" suffix. For example, an auto-increase of `IX` with the data segment is written as "`DS:[IX+]`".
+
+> Editor's Note: Incorporate the cycle penalties for auto-indexing into this document.
 
 
 ### Memory - Displacement Index
@@ -312,7 +314,7 @@ The following are the available RM register direct operands by operation size:
 
 NOTES:
 1. Instructions usually accept only one RM operand, but `LD` instructions can use two. If both operands use an additional instruction word, the word pertaining to the source operand precedes the word pertaining to the destination operand.
-2. Immediate, auto-indexed memory, and register direct addressing modes are invalid for 24-bit RM operands.
+2. The immediate and register direct addressing modes are invalid for 24-bit RM operands.
 
 Throughout this document, the following notations are used for RM operands:
 
