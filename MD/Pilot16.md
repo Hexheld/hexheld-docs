@@ -622,7 +622,7 @@ Instructions in this category perform math operations on data using the ALU.
 
 Operations: `rmw += src`, `rmw += src + CF`
 
-Adds the read-modify-write and source operands together, storing the sum to the read-modify-write operand.
+Adds the source operand to the read-modify-write operand.
 
 `ADC` adds an extra 1 if the `C` flag is set, allowing the carry output of a previous addition or other operation to be carried into the addition. It essentially performs a 3-addent addition.
 
@@ -656,7 +656,7 @@ NOTE: `ADD C, imm` does not change any of the flags. The purpose of this variant
 
 Operations: `rmw -= src`, `rmw -= src + CF`
 
-Subtracts the source operand from the read-modify-write operand, storing the difference to the read-modify-write operand.
+Subtracts the source operand from the read-modify-write operand.
 
 `SBC` subtracts an extra 1 if the `C` flag is set, allowing the carry output of a previous subtraction or other operation to be carried into the subtraction. It essentially performs a subtraction using 2 subtrahends.
 
@@ -681,3 +681,57 @@ The following encodings are available for these instructions:
 | `SBC` | `1011 0a1a 001m mmmm` | 8-bit, 16-bit | RM.RMW | Accumulator |
 
 - The `i` bits represent the 8-bit immediate value. If the accumulator is 16-bit, the immediate value is zero-extended to 16 bits. If an immediate value above `$00FF` is desired, the RM operand should be used.
+
+
+### `INC`, `DEC` - Increase, Decrease
+
+Operations: `rmw += imm`, `rmw -= imm`
+
+Adds/Subtracts an immediate value in the range of 1 to 8 to/from the read-modify-write operand.
+
+If the operation size is 16-bit and the RM operand is register direct, flags are affected as follows:
+
+- `SZIH-VDC` - Not modified.
+- `----A---` - Set if the addition/subtraction produced a carry, cleared otherwise.
+
+Otherwise, flags are affected as follows:
+
+- `--I---DC` - Not modified.
+- `S-------` - Set if the result is negative, cleared if not. This directly copies its highest bit.
+- `-Z------` - Set if the result is zero, cleared if not.
+- `---H----` - Set if the addition/subtraction carried from bit 3 to bit 4 (8-bit) or from bit 11 to bit 12 (16-bit), cleared otherwise.
+- `----A---` - Modified if the RM operand is an auto-indexed memory access using the data segment, not modified otherwise.
+- `-----V--` - Set when the highest bit of the RM operand transitions from clear to set (`INC`) or from set to clear (`DEC`), cleared otherwise.
+
+The following encodings are available for these instructions:
+
+| | Opcode Word | Operation Size | Read-Modify-Write | Source |
+| :-: | :-: | :-: | :- | :- |
+| `INC` | `0010 0000 iiim mmmm` | 8-bit | RM.RMW | Immediate |
+| `INC` | `0010 0100 iiim mmmm` | 16-bit | RM.RMW | Immediate |
+| `DEC` | `0010 0001 iiim mmmm` | 8-bit | RM.RMW | Immediate |
+| `DEC` | `0010 0101 iiim mmmm` | 16-bit | RM.RMW | Immediate |
+
+- The `i` bits represent the immediate value minus 1.
+
+
+### `MULU`, `MULSW` - Multiply
+
+Operations: `AB = A * src`, `ABHL = AB * src`
+
+Multiplies the source operand by an implied accumulator register, storing the product to an implied destination register. `MULU` treats the factors as unsigned, and `MULSW` treats the factors as signed.
+
+Flags:
+
+- `--IH--DC` - Not modified.
+- `S-------` - Set if the product is negative, cleared if not. This directly copies bit 7 of the new value of `A`.
+- `-Z------` - Set if the product is zero, cleared if not.
+- `----A---` - Modified if the RM operand is an auto-indexed memory access using the data segment, not modified otherwise.
+- `-----V--` - This flag is cleared.
+
+These instructions have the following encodings:
+
+| | Opcode Word | Operation Size | Source |
+| :-: | :-: | :-: | :- |
+| `MULU` | `0001 0010 000s ssss` | 8-bit | RM.SRC |
+| `MULSW` | `0001 0010 001s ssss` | 16-bit | RM.SRC |
