@@ -116,7 +116,7 @@ $1F    NUM7 (W)         -NNNNNNN    Segment Display Number 7
 
 $20    ACR  (W)         E--DSCBA    E: Audio Output Enable, D/S: DAC/Slope Enable, C/B/A: Noise 3/2/1 Enable
 $21    NO11 (W)         FFFFFFFF    Fine-Tune
-$22    NO12 (W)         ---CCCCC    Octave Clock Select (0: 16MHz, 1-24: take signal from the respective bit in DIV, 25-31: freeze channel)
+$22    NO12 (W)         -----CCC    Octave Clock Select (0-7: DIV4/8/16/32/64/128/256/512)
 $23    NO13 (R/W)       LLLLLLLL    LFSR State [7:0]
 $24    NO14 (R/W)       LLLLLLLL    LFSR State [15:8]
 $25    NO15 (W)         AAAABBBB    A: Main Tap, B: Noise XOR Tap (0: Input Bit, 15: Output Bit)
@@ -125,7 +125,7 @@ $27    NO17 (W)         S-----EN    S: Channel Switch (0: Stop, 1: Start), E: Sl
 
 $28    LVL  (W)         AABBLLRR    A/B: Left/Right Audio Inputs' Volumes, L/R: DAC Left/Right Volume (0: Mute, 3: Loudest)
 $29    NO21 (W)         FFFFFFFF    Fine-Tune
-$2A    NO22 (W)         ---CCCCC    Octave Clock Select (0: 16MHz, 1-24: take signal from the respective bit in DIV, 25-31: freeze channel)
+$2A    NO22 (W)         -----CCC    Octave Clock Select (0-7: DIV4/8/16/32/64/128/256/512)
 $2B    NO23 (R/W)       LLLLLLLL    LFSR State [7:0]
 $2C    NO24 (R/W)       LLLLLLLL    LFSR State [15:8]
 $2D    NO25 (W)         AAAABBBB    A: Main Tap, B: Noise XOR Tap (0: Input Bit, 15: Output Bit)
@@ -134,7 +134,7 @@ $2F    NO27 (W)         S-----EN    S: Channel Switch (0: Stop, 1: Start), E: Sl
 
 $30    DAC  (W)         DDDDDDDD    DAC Amplitude
 $31    NO31 (W)         FFFFFFFF    Fine-Tune
-$32    NO32 (W)         ---CCCCC    Octave Clock Select (0: 16MHz, 1-24: take signal from the respective bit in DIV, 25-31: freeze channel)
+$32    NO32 (W)         -----CCC    Octave Clock Select (0-7: DIV4/8/16/32/64/128/256/512)
 $33    NO33 (R/W)       LLLLLLLL    LFSR State [7:0]
 $34    NO34 (R/W)       LLLLLLLL    LFSR State [15:8]
 $35    NO35 (W)         AAAABBBB    A: Main Tap, B: Noise XOR Tap (0: Input Bit, 15: Output Bit)
@@ -143,10 +143,10 @@ $37    NO37 (W)         S-----EN    S: Channel Switch (0: Stop, 1: Start), E: Sl
 
 $38    SCNT (R/W)       -CCCCCCC    Slope Accumulator
 $39    SLO1 (W)         FFFFFFFF    Fine-Tune
-$3A    SLO2 (W)         ---CCCCC    Octave Clock Select (0: 16MHz, 1-24: take signal from the respective bit in DIV, 25-31: freeze channel)
+$3A    SLO2 (W)         -----CCC    Octave Clock Select (0-7: DIV4/8/16/32/64/128/256/512)
 $3B    SLO3 (W)         AAAAAAAA    Slope A Period
 $3C    SLO4 (W)         BBBBBBBB    Slope B Period
-$3D    SLO5 (W)         AAAABBBB    A/B: Slope A/B Accumulation Amount
+$3D    SLO5 (W)         AAAABBBB    A/B: Slope A/B Accumulator Offset
 $3E    SLO6 (W)         LLLLRRRR    L/R: Left/Right Volume (0: Mute, 15: Loudest)
 $3F    SLO7 (W)         SRFFFFFF    S: Channel Switch (0: Stop, 1: Start), R: Slope Generator Reset, F: Slope Flags
 
@@ -172,29 +172,29 @@ $47    TIMBRH (W)       ---RRRRR    Timer B Reload Value [12:8] (Hz = clockFreq/
 $48    COMSR (R)        TR------    T: Transfer Out in Progress, R: New Data Received
 $49    COMRDAT (R)      RRRRRRRR    Received Data Byte (clears R in COMSR)
 $49    COMTOUT (W)      TTTTTTTT    Transfer Out Data Byte
-$4A    CON1 (R/W)       DDDDDDDD    D: Data (controller port 1)
-$4B    CON2 (R/W)       DDDDDDDD    D: Data (controller port 2)
+$4A    CONL (R/W)       DDDDDDDD    Left Controller Data Port
+$4B    CONR (R/W)       DDDDDDDD    Right Controller Data Port
 $4C    CARTOUT (R/W)    OOOOOOOO    O: Cartridge Output Lines (8-bit cart bus mode only)
 $4D    CSMOD (R/W)      ---MXXXX    M: CS1 Mode (0: ROM, 1: Normal), X: Bound Setting (CS1 = addr >= $01X000; CS2 = addr < $01X000)
 $4E    WAITCR (R/W)     ---W-RRR    W: Cart Data Bus Width (0: 8-bit, 1: 16-bit), R: ROM Access Waitstate Count
 $4F    IRSR (R)         L------I    L: Signal from Receiver, I: Infrared Light Switch (0: on, 1: off)
 $4F    IRCR (W)         -S-----I    S: Infrared Receiver Signal Read Enable, ...
 
-$50    IVBLL (R/W)      AAAAAIII    A: Base Address [7:3], I: Number
+$50    IVBLL (R/W)      AAAAABBB    A: Base Address [7:3], B: E Register Bit
 $51    IVBLH (R/W)      ENAAAAAA    E: Enable, N: Nest Mode, A: Base Address [13:8] (VBLANK Interrupt)
-$52    ILYCL (R/W)      AAAAAIII    ...
+$52    ILYCL (R/W)      AAAAABBB    ...
 $53    ILYCH (R/W)      ENAAAAAA    ... (Line Counter Compare Interrupt)
-$54    ITIMAL (R/W)     AAAAAIII    ...
+$54    ITIMAL (R/W)     AAAAABBB    ...
 $55    ITIMAH (R/W)     ENAAAAAA    ... (Timer A Interrupt)
-$56    ITIMBL (R/W)     AAAAAIII    ...
+$56    ITIMBL (R/W)     AAAAABBB    ...
 $57    ITIMBH (R/W)     ENAAAAAA    ... (Timer B Interrupt)
-$58    ID1L (R/W)       AAAAAIII    ...
+$58    ID1L (R/W)       AAAAABBB    ...
 $59    ID1H (R/W)       ENAAAAAA    ... (DMA 1 Interrupt)
-$5A    ID2L (R/W)       AAAAAIII    ...
+$5A    ID2L (R/W)       AAAAABBB    ...
 $5B    ID2H (R/W)       ENAAAAAA    ... (DMA 2 Interrupt)
-$5C    ICOML (R/W)      AAAAAIII    ...
+$5C    ICOML (R/W)      AAAAABBB    ...
 $5D    ICOMH (R/W)      ENAAAAAA    ... (Communication Received Data Interrupt)
-$5E    IEXTL (R/W)      AAAAAIII    ...
+$5E    IEXTL (R/W)      AAAAABBB    ...
 $5F    IEXTH (R/W)      ENAAAAAA    ... (External Interrupt)
 
 $60    D1SAL (R/W)      SSSSSSSS    DMA 1 Source Address [7:0]
@@ -215,32 +215,38 @@ $6D    D2DAH (R/W)      0000000D    DMA 2 Destination Address [16]
 $6E    D2CNTL (R/W)     CCCCCCCC    DMA 2 Counter [7:0]
 $6F    D2CNTH (R/W)     CCCCCCCC    DMA 2 Counter [15:8] (65536-C bytes/words)
 
-$70    BLCR (R/W)       E-------    E: Enable backlight driver
-$71    BLRI (R/W)       RRRRRRRR    Red Intensity   (0: Off, 31: Brightest)
-$72    BLGI (R/W)       GGGGGGGG    Green Intensity (0: Off, 31: Brightest)
-$73    BLBI (R/W)       BBBBBBBB    Blue Intensity  (0: Off, 31: Brightest)
-$74 - $75    <reserved>
+$70    BLCR (R/W)       E-------    E: Enable Backlight Driver
+$71    BLRI (R/W)       RRRRRRRR    Red/Monochrome Intensity  (0: Off, 255: Brightest)
+$72    BLGI (R/W)       GGGGGGGG    Green Intensity           (0: Off, 255: Brightest)
+$73    BLBI (R/W)       BBBBBBBB    Blue Intensity            (0: Off, 255: Brightest)
+$74    <reserved>
+$75    <reserved>
 $76    SETKEYL (W)      KKKKKKKK    K: Key To Access Backlight Setting RAM [7:0]
 $77    SETKEYH (W)      KKKKKKKK    K: Key To Access Backlight Setting RAM [15:8]
-$78    SETB0 (R(/W)     SSSSSSSS    S: Backlight Settings Byte 0 [7:0]
-$79    SETB1 (R(/W)     SSSSSSSS    S: Backlight Settings Byte 1
-$7A    SETB2 (R(/W)     SSSSSSSS    S: Backlight Settings Byte 2
-$7B    SETB3 (R(/W)     SSSSSSSS    S: Backlight Settings Byte 3
-$7C    SETB4 (R(/W)     SSSSSSSS    S: Backlight Settings Byte 4
-$7D    SETB5 (R(/W)     SSSSSSSS    S: Backlight Settings Byte 5
-$7E    SETB6 (R(/W)     SSSSSSSS    S: Backlight Settings Byte 6
-$7F    SETB7 (R(/W)     SSSSSSSS    S: Backlight Settings Byte 7
+$78    SETB0 (R(/W))    SSSSSSSS    S: Backlight Settings Byte 0
+$79    SETB1 (R(/W))    SSSSSSSS    S: Backlight Settings Byte 1
+$7A    SETB2 (R(/W))    SSSSSSSS    S: Backlight Settings Byte 2
+$7B    SETB3 (R(/W))    SSSSSSSS    S: Backlight Settings Byte 3
+$7C    SETB4 (R(/W))    SSSSSSSS    S: Backlight Settings Byte 4
+$7D    SETB5 (R(/W))    SSSSSSSS    S: Backlight Settings Byte 5
+$7E    SETB6 (R(/W))    SSSSSSSS    S: Backlight Settings Byte 6
+$7F    SETB7 (R(/W))    SSSSSSSS    S: Backlight Settings Byte 7
 
-$80    BATSR (R)        S----BBB    S: Sample In Progress, B: Sampled Battery Level (7: full)
-$80    BATCR (W)        S-------    S: Battery Level Sample Init
-$81    BOARD (R)        XOSsBDUS    X: Cartridge EXT Line, O: Orientation Switch, S/s/B/D/U/S: Start, Select, Light, Down, Up, Set buttons
-(obs: Light, Down, Up, Set are buttons meant to control the backlight, do not use them for game functions)
-$82    CDIV (R)         ABCDEFGH    System's Prescaler Bits (A: 7.8125 KHz, H: 1 MHz)
-$83    OCCR (R/W)       E-----CC    E: Enable main 16MHz oscillator, C: CPU Clock Speed (0: 8 MHz, 1: 4 MHz, 2: 2 MHz, 3: 32768 Hz)
+$80    BATSR (R)        S----BBB    S: Battery Level Sample In Progress, B: Sampled Battery Level (7: full)
+$80    BATCR (W)        S-------    S: Battery Level Sample Start
+$81    BOARD (R)        XOPSBDUA    X: Cartridge EXT Line, O: Orientation, P/S/D/U/A: Pause/Select/Down/Up/Adjust Buttons, B: Backlight Type
+$82    PADSR (R)        ------LR    L/R: Left/Right Paddle Sample In Progress
+$82    PADCR (W)        ------LR    L/R: Left/Right Paddle Sample Start (do not set both at once!)
+$83    PADPOS (R)       PPPPPPPP    Sampled Paddle Position
+$84 - $8F    <reserved>
 
-$83 - $FE    <reserved>
+$90    CDIV (R)         ABCDEFGH    System Prescaler Bits (A: 7.8125 KHz, H: 1 MHz)
+$91    OSCCR (R/W)      E-----CC    E: Enable Main 16 MHz Oscillator, C: CPU Clock Speed (0: 8 MHz, 1: 4 MHz, 2: 2 MHz, 3: 32768 Hz)
 
-$FF    VER (R)          VVVVVVVV    V: SoC version number (0 for now)
+$92 - $FE    <reserved>
+
+$FF    VER (R)          VVVVVVVV    SoC Version Number (0 for now)
+
 
 LCD Modes:
 
@@ -312,22 +318,20 @@ Mode    Operation
 6       I/O     = [DxSA+]  ($00 - $3F only!)
 7       [DxDA+] = COMRDAT
 
-DMA 2 has priority over DMA 1, and both DMAs stall the CPU while running.
+DMA 1 has priority over DMA 2, and both DMAs stall the CPU while running.
 
 
+Clock Divider:
 
-System's clock divider:
+The Hexheld has an 11-bit system clock divider which is a ripple counter being clocked by the 16 MHz clock.
+Its main purpose is to provide timing signals for the Pilot, Radar, Power Noise, and the general-purpose timers A and B.
 
-The Hexheld has a 24-bit system clock divider which is a ripple counter being clocked by the 16MHz clock.
-Its main purpose is to provide timing signals for the Pilot, Radar and PowerNoise's octaves.
-You can also read the clock divider's current bits 10-3 using the CDIV register
+Bits 10-3 of the divider can be read using the CDIV register.
 
-23 22 21 20 19 18 17 16 15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00 <- [CLK]
-|                                       |                    |  |  |  |     |
-o---------------------------------------|--------------------|--|--|--|-----o---> Power Noise
-                                        |                    |  |  |  |
-                                        o--------------------o--|--|--|---------> CDIV
-                                                                |  |  |
-                                                                |  |  o---------> Pilot and Radar Clocks (Radar reacts on low edge)
-                                                                |  |  |
-                                                                o--o--o---------> Pilot Only Clock settings (Pilot Reacts On High Edge)
+DIV: 1024                            1
+      10 09 08 07 06 05 04 03 02 01 00 <- [CLK]
+       |  |  |  |  |  |  |  |  |  |  |
+       |  o--o--o--o--o--o--o--o---------------> Power Noise and Timers A/B
+       o--o--o--o--o--o--o--o------------------> CDIV
+                               |  o------------> Radar Clock (reacts on low edge)
+                               o--o--o---------> Pilot Clock Settings (reacts on high edge)
