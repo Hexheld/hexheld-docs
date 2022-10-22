@@ -498,6 +498,8 @@ Operation: `D = K; DF = 1`
 
 Sets the `D` register to the value of the `K` register, and sets the `D` flag.
 
+No other flags besides `D` are affected.
+
 The opcode word corresponding to `SDS` is `$100C`.
 
 
@@ -553,7 +555,7 @@ Operation: `dst = [SP]; SP += 2`
 
 Removes data from the top of the stack and stores the data to the destination operand.
 
-Flags:
+Flags (unless the destination is `F` or `ALL`):
 
 - `SZIH-VDC` - Not modified.
 - `----A---` - Modified if the operand is an auto-indexed memory access using the data segment, not modified otherwise.
@@ -649,7 +651,7 @@ The following encodings are available for these instructions:
 
 - The `i` bits represent the 8-bit immediate value. If the accumulator is 16-bit, the immediate value is zero-extended to 16 bits. If an immediate value above `$00FF` is desired, the RM operand should be used.
 
-NOTE: `ADD C, imm` does not change any of the flags. The purpose of this variant of `ADD` is to apply an immediate offset relative to a base port number.
+NOTE: `ADD C, imm` does not change any of the flags. The purpose of this variant of `ADD` is to apply an immediate offset relative to a base I/O port number.
 
 
 ### `SUB`, `SBC` - Subtract
@@ -735,3 +737,34 @@ These instructions have the following encodings:
 | :-: | :-: | :-: | :- |
 | `MULU` | `0001 0010 000s ssss` | 8-bit | RM.SRC |
 | `MULSW` | `0001 0010 001s ssss` | 16-bit | RM.SRC |
+
+
+### `DIVU`, `DIVSW` - Divide
+
+Operations: `(AB / src); B = quotient; A = remainder`, `(ABHL / src); HL = quotient; AB = remainder`
+
+Divides an implied register by the source operand, storing the quotient and remainder to its halves.
+- The remainder is the result of a modulo operation.
+
+`DIVU` takes in a 16-bit unsigned dividend and 8-bit unsigned divisor, and produces 8-bit truncations of unsigned quotient and remainder results.
+
+`DIVSW` takes in a 32-bit signed dividend and 16-bit signed divisor, and produces 16-bit truncations of signed quotient and remainder results. The magnitude (positive or negative) of the remainder before being truncated is the same as the magnitude of the dividend.
+
+Dividing by zero is invalid. When the source operand is 0, the quotient and remainder will not be written into the accumulators. The state of the `Z` flag can be tested to determine whether the division failed.
+
+Flags:
+
+- `--IH--DC` - Not modified.
+- `S-------` - Set if the truncated quotient is negative, cleared if not. This directly copies its highest bit. Unpredictable if a division by zero was attempted.
+- `-Z------` - Set if a division by zero was attempted, cleared otherwise.
+- `----A---` - Modified if the RM operand is an auto-indexed memory access using the data segment, not modified otherwise.
+- `-----V--` - Set if the quotient is outside the 8-bit unsigned (`DIVU`) or 16-bit signed (`DIVSW`) range, cleared otherwise. Unpredictable if a division by zero was attempted.
+
+These instructions have the following encodings:
+
+| | Opcode Word | Operation Size | Source |
+| :-: | :-: | :-: | :- |
+| `DIVU` | `0001 0010 010s ssss` | 8-bit | RM.SRC |
+| `DIVSW` | `0001 0010 011s ssss` | 16-bit | RM.SRC |
+
+NOTE: If `DIVSW` is used with an auto-indexed memory operand using `HL` as the offset register, it will be modified first before being used as the lower 16 bits of the dividend.
