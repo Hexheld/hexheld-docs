@@ -1,4 +1,4 @@
-**This document is in "Work In Progress" (WIP) state, hence that it's incomplete, and that new edits will be released in the future.**
+**This document is in "Work In Progress" (WIP) state. It cannot be merged into `main` until it is considered ready.**
 
 ---
 
@@ -39,12 +39,17 @@ This scheme is only used in "`DS:`" addressing modes while the `D` flag is clear
 
 ### Segment Adjust
 
-To ease managements of 24-bit linear addresses, the processor provides a *segment adjust* feature consisting of the `A` flag and the `SAO` and `SAU` instructions.
+To ease 24-bit pointer arithmetic, the processor provides a *segment adjust* feature. The upper 8 bits of the pointer are to be in the `D` register and the lower 16 bits in some other register.
 
-The `A` flag is modified whenever an auto-index operand using "`DS:`" is present in an instruction, or is left alone otherwise. The flag is set when the offset register overflows past `$FFFF` or underflows below `$0000`, or is cleared otherwise.
-- If both operands are as such, the `A` flag is set to an unpredictable state.
+The `A` flag reports an overflow/underflow condition from a calculation done to the 16-bit offset portion, and the `SAO`/`SAU` instruction modifies `D` to move the data segment window forwards/backwards by 64 KB if the condition occured.
 
-Some instructions do not modify the `A` flag according to the presence of such operand. Those either modify it according to the instruction operation or leave the flag alone.
+For many instructions, segment adjustments work off of auto-indexed memory operands using the data segment:
+
+#### Auto-Index Using Data Segment
+
+- When this type of memory operand is present in the instruction, the `A` flag is set if the offset register overflowed past `$FFFF` or underflowed below `$0000`, or is cleared otherwise.
+- When multiple of the operands are of this type, the `A` flag is set to an unpredictable state. 
+- When this type is not present, the `A` flag is left alone.
 
 
 ### 24-bit Memory Reads
@@ -107,6 +112,8 @@ This 8-bit register stores various condition code and operating flags:
 `Z` - Set if the result of an operation is zero, cleared if not.
 
 `S` - Set if the result of an operation is negative, cleared if not. This is a direct copy of the highest bit of the result.
+
+NOTE: The proper terminology for a subtraction carry is a *borrow*.
 
 #### `V` Flag
 
@@ -191,7 +198,7 @@ When a Z register is specified, it is technically an absolute memory operand.
 
 ### Extension Register
 
-The operand specifies a 16-bit extension of an 8-bit register. Extension registers can be a source operand, but cannot be a read-modify-write or destination operand.
+A subtype of Register Direct, where the operand specifies a 16-bit extension of an 8-bit register. Extension registers can be a source operand, but cannot be a read-modify-write or destination operand.
 
 The following extension registers are available:
 
@@ -243,7 +250,7 @@ The operand is written the same way as a Register Offset operand, but the regist
 
 The operand specifies a memory access where the offset portion is the calculated sum of two values. If the sum exceeds `$FFFF`, it will wrap back to `$0000` and continue up from there.
 
-The following variations of indexed addressing are available:
+The following variations of displacement-indexed addressing are available:
 
 | Variation | Syntax |
 | :-: | :- |
@@ -420,7 +427,7 @@ Loads the destination operand with a copy of the source operand.
 Flags (unless the destination is `F`):
 
 - `SZIH-VDC` - Not modified.
-- `----A---` - Modified if either of the operands is an auto-indexed memory access using the data segment, not modified otherwise.
+- `----A---` - **Auto-Index Using Data Segment**
 
 The following encodings are available for `LD`:
 
@@ -456,7 +463,7 @@ Loads the destination operand with a zero value. This is preferred over `LD ...,
 Flags:
 
 - `SZIH-VDC` - Not modified.
-- `----A---` - Modified if the operand is an auto-indexed memory access using the data segment, not modified otherwise.
+- `----A---` - **Auto-Index Using Data Segment**
 
 The following encodings are available for `CLR`:
 
@@ -478,7 +485,7 @@ Flags:
 
 - `SZIH-V-C` - Not modified.
 - `----A---` - (`LDIXA`) Set if the sum of the unsigned `IX` value and signed immediate value is above `$FFFF` or below `$0000`, cleared otherwise.
-- `----A---` - (`LDSPA`, `LDPCA`) Modified if the RM operand is an auto-indexed memory access using the data segment, not modified otherwise.
+- `----A---` - (`LDSPA`, `LDPCA`) **Auto-Index Using Data Segment**
 - `------D-` - `LDPCA` sets this flag. `LDIXA` and `LDSPA` leave this flag alone.
 
 These instructions have the following encodings:
@@ -512,7 +519,7 @@ Pushes the source operand's value onto the stack.
 Flags:
 
 - `SZIH-VDC` - Not modified.
-- `----A---` - Modified if the operand is an auto-indexed memory access using the data segment, not modified otherwise.
+- `----A---` - **Auto-Index Using Data Segment**
 
 The following encodings are available for `PUSH`:
 
@@ -558,7 +565,7 @@ Removes data from the top of the stack and stores the data to the destination op
 Flags (unless the destination is `F` or `ALL`):
 
 - `SZIH-VDC` - Not modified.
-- `----A---` - Modified if the operand is an auto-indexed memory access using the data segment, not modified otherwise.
+- `----A---` - **Auto-Index Using Data Segment**
 
 The following encodings are available for `POP`:
 
@@ -626,7 +633,7 @@ Operations: `rmw += src`, `rmw += src + CF`
 
 Adds the source operand to the read-modify-write operand.
 
-`ADC` adds an extra 1 if the `C` flag is set, allowing the carry output of a previous addition or other operation to be carried into the addition. It essentially performs a 3-addent addition.
+`ADC` adds an extra 1 if the `C` flag is set, allowing the carry output of a previous addition or other operation to be carried into the addition. It merely performs a 3-addent addition.
 
 Flags:
 
@@ -660,7 +667,7 @@ Operations: `rmw -= src`, `rmw -= src + CF`
 
 Subtracts the source operand from the read-modify-write operand.
 
-`SBC` subtracts an extra 1 if the `C` flag is set, allowing the carry output of a previous subtraction or other operation to be carried into the subtraction. It essentially performs a subtraction using 2 subtrahends.
+`SBC` subtracts an extra 1 if the `C` flag is set, allowing the carry output of a previous subtraction or other operation to be carried into the subtraction. It merely performs a subtraction using 2 subtrahends.
 
 Flags:
 
@@ -702,7 +709,7 @@ Otherwise, flags are affected as follows:
 - `S-------` - Set if the result is negative, cleared if not. This directly copies its highest bit.
 - `-Z------` - Set if the result is zero, cleared if not.
 - `---H----` - Set if the addition/subtraction carried from bit 3 to bit 4 (8-bit) or from bit 11 to bit 12 (16-bit), cleared otherwise.
-- `----A---` - Modified if the RM operand is an auto-indexed memory access using the data segment, not modified otherwise.
+- `----A---` - **Auto-Index Using Data Segment**
 - `-----V--` - Set when the highest bit of the RM operand transitions from clear to set (`INC`) or from set to clear (`DEC`), cleared otherwise.
 
 The following encodings are available for these instructions:
@@ -728,7 +735,7 @@ Flags:
 - `--IH--DC` - Not modified.
 - `S-------` - Set if the product is negative, cleared if not. This directly copies bit 7 of the new value of `A`.
 - `-Z------` - Set if the product is zero, cleared if not.
-- `----A---` - Modified if the RM operand is an auto-indexed memory access using the data segment, not modified otherwise.
+- `----A---` - **Auto-Index Using Data Segment**
 - `-----V--` - This flag is cleared.
 
 These instructions have the following encodings:
@@ -743,22 +750,22 @@ These instructions have the following encodings:
 
 Operations: `(AB / src); B = quotient; A = remainder`, `(ABHL / src); HL = quotient; AB = remainder`
 
-Divides an implied register by the source operand, storing the quotient and remainder to its halves.
+Divides an implied register by the source operand, storing the quotient to its low half and the remainder to its high half.
 - The remainder is the result of a modulo operation.
 
-`DIVU` takes in a 16-bit unsigned dividend and 8-bit unsigned divisor, and produces 8-bit truncations of unsigned quotient and remainder results.
+`DIVU` takes in a 16-bit unsigned dividend and 8-bit unsigned divisor, and produces 8-bit unsigned quotient and remainder results.
 
-`DIVSW` takes in a 32-bit signed dividend and 16-bit signed divisor, and produces 16-bit truncations of signed quotient and remainder results. The magnitude (positive or negative) of the remainder before being truncated is the same as the magnitude of the dividend.
+`DIVSW` takes in a 32-bit signed dividend and 16-bit signed divisor, and produces 16-bit signed quotient and remainder results. The magnitude (positive or negative) of the remainder is the same as the magnitude of the dividend.
 
 Dividing by zero is invalid. When the source operand is 0, the quotient and remainder will not be written into the accumulators. The state of the `Z` flag can be tested to determine whether the division failed.
 
 Flags:
 
 - `--IH--DC` - Not modified.
-- `S-------` - Set if the truncated quotient is negative, cleared if not. This directly copies its highest bit. Unpredictable if a division by zero was attempted.
-- `-Z------` - Set if a division by zero was attempted, cleared otherwise.
-- `----A---` - Modified if the RM operand is an auto-indexed memory access using the data segment, not modified otherwise.
-- `-----V--` - Set if the quotient is outside the 8-bit unsigned (`DIVU`) or 16-bit signed (`DIVSW`) range, cleared otherwise. Unpredictable if a division by zero was attempted.
+- `S-------` - Set if the truncated quotient is negative, cleared if not. This directly copies its highest bit. Unpredictable if a division by zero attempted to be performed.
+- `-Z------` - Set if a division by zero attempted to be performed, cleared otherwise.
+- `----A---` - **Auto-Index Using Data Segment**
+- `-----V--` - Set if the quotient is outside the 8-bit unsigned (`DIVU`) or 16-bit signed (`DIVSW`) range, cleared otherwise. Unpredictable if a division by zero attempted to be performed.
 
 These instructions have the following encodings:
 
@@ -767,4 +774,31 @@ These instructions have the following encodings:
 | `DIVU` | `0001 0010 010s ssss` | 8-bit | RM.SRC |
 | `DIVSW` | `0001 0010 011s ssss` | 16-bit | RM.SRC |
 
-NOTE: If `DIVSW` is used with an auto-indexed memory operand using `HL` as the offset register, it will be modified first before being used as the lower 16 bits of the dividend.
+NOTE: If `DIVSW` is used with an auto-indexed memory operand using `HL` as the offset register, `HL` will be modified first before being used as the lower 16 bits of the dividend.
+
+
+### `NEG`, `NGC` - Negate
+
+Operations: `rmw = 0 - rmw`, `rmw = 0 - (rmw + CF)`
+
+Subtracts the read-modify-write operand from zero, storing the difference to the read-modify-write operand. This performs a **2's complement** negation.
+
+`NGC` subtracts an extra 1 if the `C` flag is set, allowing the carry output of a previous negation or other operation to be carried into the subtraction. It merely performs a subtraction using 2 subtrahends.
+
+Flags:
+
+- `--I---D-` - Not modified.
+- `S-------` - Set if the result is negative, cleared if not. This directly copies its highest bit.
+- `-Z------` - Set if the result is zero, cleared if not.
+- `---H----` - Set if the subtraction carried from bit 3 to bit 4 (8-bit) or from bit 11 to bit 12 (16-bit), cleared otherwise.
+- `----A--C` - Both set if the subtraction produced a carry, both cleared otherwise.
+- `-----V--` - Set if the result is `-128` (8-bit) or `-32768` (16-bit), cleared otherwise.
+
+These instructions have the following encodings:
+
+| | Opcode Word | Operation Size | Read-Modify-Write |
+| :-: | :-: | :-: | :- |
+| `NEG` | `0010 0010 000m mmmm` | 8-bit | RM.RMW |
+| `NEG` | `0010 0110 000m mmmm` | 16-bit | RM.RMW |
+| `NGC` | `0010 0011 000m mmmm` | 8-bit | RM.RMW |
+| `NGC` | `0010 0111 000m mmmm` | 16-bit | RM.RMW |
