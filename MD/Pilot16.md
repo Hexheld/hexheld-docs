@@ -295,7 +295,7 @@ The following are the available RM memory and immediate operands:
 
 | | Syntax | | Syntax | | Syntax |
 | :-: | :- | :-: | :- | :-: | :- |
-| `0` | `imm` | `1` | `[HL+]` | `2` | `[AB]` |
+| `0` | `imm` (Immediate) | `1` | `[HL+]` | `2` | `[AB]` |
 | `4` | `[$010000+imm]` | `5` | `DS:[HL+]` | `6` | `DS:[AB]` |
 | `8` | `[imm]` | `9` | `[HL-]` | `10` | `[HL]` |
 | `12` | `DS:[imm]` | `13` | `DS:[HL-]` | `14` | `DS:[HL]` |
@@ -794,7 +794,7 @@ Flags:
 - `----A--C` - Both set if the subtraction produced a carry, both cleared otherwise.
 - `-----V--` - Set if the result is `-128` (8-bit) or `-32768` (16-bit), cleared otherwise.
 
-These instructions have the following encodings:
+The following encodings are available for these instructions:
 
 | | Opcode Word | Operation Size | Read-Modify-Write |
 | :-: | :-: | :-: | :- |
@@ -802,3 +802,38 @@ These instructions have the following encodings:
 | `NEG` | `0010 0110 000m mmmm` | 16-bit | RM.RMW |
 | `NGC` | `0010 0011 000m mmmm` | 8-bit | RM.RMW |
 | `NGC` | `0010 0111 000m mmmm` | 16-bit | RM.RMW |
+
+
+### `CP` - Compare
+
+Operation: `discard = rmw - src`
+
+Subtracts the source operand from the read-modify-write operand without storing the difference anywhere. The flags are updated according to this subtraction. This performs an arithmetic comparison.
+
+This instruction is typically followed by a conditional program flow instruction. For example, if it is desired to far-return if the signed value in `A` is greater than the signed value in `B`, the following sequence of instructions is to be used:
+
+```
+        CP A, B
+        RETF GT
+```
+
+Flags:
+
+- `--I---D-` - Not modified.
+- `S-------` - Set if the difference is negative, cleared if not. This directly copies its highest bit.
+- `-Z------` - Set if the difference is zero, cleared if not.
+- `---H----` - Set if the subtraction carried from bit 3 to bit 4 (8-bit) or from bit 11 to bit 12 (16-bit), cleared otherwise.
+- `----A--C` - Both set if the subtraction produced a carry, both cleared otherwise.
+- `-----V--` - Set if the difference of the signed operands is outside the signed range of the operation size, cleared otherwise. This is when the difference ends up having the opposite sign of the minuend and the same sign as the subtrahend.
+
+The following encodings are available for `CP`:
+
+| Opcode Word | Operation Size | Read-Modify-Write | Source |
+| :-: | :-: | :- | :- |
+| `1111 0a0a iiii iiii` | 8-bit, 16-bit | Accumulator | Immediate |
+| `1111 0a1a 000s ssss` | 8-bit, 16-bit | Accumulator | RM.SRC |
+| `1111 0a1a 001m mmmm` | 8-bit, 16-bit | RM.RMW | Accumulator |
+
+- The `i` bits represent the 8-bit immediate value. If the accumulator is 16-bit, the immediate value is sign-extended to 16 bits. If an immediate value from `$0080` to `$FF7F` is desired, the RM operand should be used.
+
+NOTE: The read-modify-write operand is not written to: it is mechanically another source operand. This document refers to it as such, since extension registers and immediate are invalid RM.RMW specifications.
