@@ -41,7 +41,7 @@ This scheme is only used in "`DS:`" addressing modes while the `D` flag is clear
 
 To ease 24-bit pointer arithmetic, the processor provides a *segment adjust* feature. The upper 8 bits of the pointer are to be in the `D` register and the lower 16 bits in some other register.
 
-The `A` flag reports an overflow/underflow condition from a calculation done to the 16-bit offset portion, and the `SAO`/`SAU` instruction modifies `D` to move the data segment window forwards/backwards by 64 KB if the condition occured.
+The `A` flag reports an overflow/underflow condition from a calculation done to the 16-bit offset portion, and the `SAO`/`SAU` instruction modifies `D` to move the data segment window forwards/backwards by 64 KB if the condition was true.
 
 For many instructions, segment adjustments work off of auto-indexed memory operands using the data segment:
 
@@ -837,3 +837,30 @@ The following encodings are available for `CP`:
 - The `i` bits represent the 8-bit immediate value. If the accumulator is 16-bit, the immediate value is sign-extended to 16 bits. If an immediate value from `$0080` to `$FF7F` is desired, the RM operand should be used.
 
 NOTE: The read-modify-write operand is not written to: it is mechanically another source operand. This document refers to it as such, since extension registers and immediate are invalid RM.RMW specifications.
+
+
+### `DAA`, `DAS` - Decimal Adjust
+
+When an 8-bit variant of an add or subtract instruction attempts to be used with 2-digit binary-coded decimal (BCD) values, the result will not be correct. To assist BCD arithmetic, the processor provides a *decimal adjust* feature consisting of these two instructions.
+
+`DAA` is to be used after an `ADD` or `ADC` instruction where the read-modify-write operand is `A`. The value in `A` will be adjusted to represent the correct BCD sum. Performs the following operation:
+
+```
+if (A & $0F) > $9 || HF == 1 {A += $06; HF = 1};
+if        A > $9F || CF == 1 {A += $60; CF = 1}
+```
+
+`DAS` is to be used after a `SUB` or `SBC` instruction where the read-modify-write operand is `A`. The value in `A` will be adjusted to represent the correct BCD difference. Performs the following operation:
+
+```
+if (A & $0F) > $9 || HF == 1 {A -= $06; HF = 1};
+if        A > $9F || CF == 1 {A -= $60; CF = 1}
+```
+
+Flags:
+
+- `S-I-AVD-` - Not modified.
+- `-Z------` - Set if the result of the adjustment done to `A` is `$00`, cleared otherwise.
+- `---H---C` - Modified according to the decimal adjust algorithm.
+
+The opcode word corresponding to `DAA` is `$1001`, and the opcode word corresponding to `DAS` is `$1009`.
