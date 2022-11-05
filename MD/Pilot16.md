@@ -762,7 +762,7 @@ Dividing by zero is invalid. When the source operand is 0, the quotient and rema
 Flags:
 
 - `--IH--DC` - Not modified.
-- `S-------` - Set if the truncated quotient is negative, cleared if not. This directly copies its highest bit. Unpredictable if a division by zero attempted to be performed.
+- `S-------` - Set if the quotient written to `B`/`HL` is negative, cleared if not. This directly copies its highest bit. Unpredictable if a division by zero attempted to be performed.
 - `-Z------` - Set if a division by zero attempted to be performed, cleared otherwise.
 - `----A---` - **Auto-Index Using Data Segment**
 - `-----V--` - Set if the quotient is outside the 8-bit unsigned (`DIVU`) or 16-bit signed (`DIVSW`) range, cleared otherwise. Unpredictable if a division by zero attempted to be performed.
@@ -864,3 +864,54 @@ Flags:
 - `---H---C` - Modified according to the decimal adjust algorithm.
 
 The opcode word corresponding to `DAA` is `$1001`, and the opcode word corresponding to `DAS` is `$1009`.
+
+
+
+## Instruction Set - Bitwise Logic
+
+Instructions in this category perform [bitwise binary operations](https://en.wikipedia.org/wiki/Bitwise_operation) on data using the ALU.
+
+For all of these instructions, flags are affected as follows:
+
+- `--IH--DC` - Not modified.
+- `S-------` - Set if the result is negative, cleared if not. This directly copies its highest bit.
+- `-Z------` - Set if the result is zero, cleared if not.
+- `----A---` - **Auto-Index Using Data Segment**
+- `-----V--` - Set if the amount of set bits in the result is even, cleared if odd.
+
+
+### `AND`, `OR`, `XOR`
+
+Operations: `rmw &= src`, `rmw |= src`, `rmw ^^= src`
+
+Produces the bitwise AND/OR/exclusive OR of the read-modify-write operand and source operand, storing the result to the read-modify-write operand.
+
+The following encodings are available for these instructions:
+
+| | Opcode Word | Operation Size | Read-Modify-Write | Source |
+| :-: | :-: | :-: | :- | :- |
+| `AND` | `1100 0a0a iiii iiii` | 8-bit, 16-bit | Accumulator | Immediate |
+| `AND` | `1100 0a1a 000s ssss` | 8-bit, 16-bit | Accumulator | RM.SRC |
+| `AND` | `1100 0a1a 001m mmmm` | 8-bit, 16-bit | RM.RMW | Accumulator |
+| `OR` | `1110 0a0a iiii iiii` | 8-bit, 16-bit | Accumulator | Immediate |
+| `OR` | `1110 0a1a 000s ssss` | 8-bit, 16-bit | Accumulator | RM.SRC |
+| `OR` | `1110 0a1a 001m mmmm` | 8-bit, 16-bit | RM.RMW | Accumulator |
+| `XOR` | `1101 0a0a iiii iiii` | 8-bit, 16-bit | Accumulator | Immediate |
+| `XOR` | `1101 0a1a 000s ssss` | 8-bit, 16-bit | Accumulator | RM.SRC |
+| `XOR` | `1101 0a1a 001m mmmm` | 8-bit, 16-bit | RM.RMW | Accumulator |
+
+- The `i` bits represent the 8-bit immediate value. If the accumulator is 16-bit, the immediate value is sign-extended to 16 bits. If an immediate value from `$0080` to `$FF7F` is desired, the RM operand should be used.
+
+
+### `CPL` - Complement
+
+Operation: `rmw = ~rmw`
+
+Flips all bits in the read-modify-write operand. This is a *bitwise NOT* operation.
+
+The following encodings are available for `CPL`:
+
+| Opcode Word | Operation Size | Read-Modify-Write |
+| :-: | :-: | :- |
+| `0010 0010 100m mmmm` | 8-bit | RM.RMW |
+| `0010 0110 100m mmmm` | 16-bit | RM.RMW |
