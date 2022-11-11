@@ -40,6 +40,10 @@ Planar Character Format (one plane):
 +7    ABCDEFGH    Row 7 (A: left-most pixel, H: right-most pixel)
 
 
+When constructing a pixel value from bitplanes or from the packed bitmap, value 0 is treated as transparent and values above 0 as opaque.
+The exception is when background palette modulation is enabled, where with the low-priority BG, all values are treated as opaque.
+
+
 Sprite List Table Format:
 
 base + 0   + spriteNo    XXXXXXXX    X Position ($00 to $FF: -8 to +247)
@@ -76,15 +80,15 @@ I/O Map:
 
                         76543210
 
-$00    PSR (R)          LSB--FMM    L: LCD Enable, S: Segment Enable, B: Battery Indicator Enable, F: Force Blank, M: Mode
+$00    PSR (R)          LSB--FMM    L: Primary LCD Enable, S: 7-Segment Enable, B: Battery Indicator Enable, F: Force Blank, M: Mode
 $00    PCR (W)          LSB--F--    ...
 $01    LY (R)           LLLLLLLL    Line Counter
 $01    LYC (W)          LLLLLLLL    Line Counter Compare Number (interrupt on LY transitioning to LYC value)
-$02    BGXA (R/W)       -TXXXXXA    T: Tilemap Number (0: BG1, 1: BG2), X: Tilemap X Position, A: Tilemap Attribute Byte Select
+$02    BGXA (R/W)       -TXXXXXA    T: Tilemap Number, X: Tilemap X Position, A: Tilemap Attribute Byte Select
 $03    BGYA (R/W)       D--YYYYY    D: Auto-Increment Direction (0: X, 1: Y), Y: Tilemap Y Position
 $04    BGDAT (R/W)      DDDDDDDD    Tilemap RAM Data Read/Write
 $05    SDMA (W)         ---SSSSS    Init Sprite DMA to run at start of next/upcoming VBLANK (base = $008000 + S*1024)
-$06    PMODL (W)        WOBASSMM    W/O/B/A: Window/Sprites/BG2/BG1 Enable, S: Background Submode, M: Background Mode
+$06    PMODL (W)        WOBASSMM    W: Window Enable, O/B/A: Sprite/BG2/BG1 Layer Enable, S: Background Submode, M: Background Mode
 $07    PMODH (W)        BAIIIOOO    B/A: Enable BG2/BG1 Odd Y Scroll Correction, I/O: Show Sprites/BG2/BG1 Inside/Outside Window
 
 $08    WINL (W)         LLLLLLLL    Window Left Edge Position
@@ -121,7 +125,7 @@ $23    NO13 (R/W)       LLLLLLLL    LFSR State [7:0]
 $24    NO14 (R/W)       LLLLLLLL    LFSR State [15:8]
 $25    NO15 (W)         AAAABBBB    A: Main Tap, B: Noise XOR Tap (0: Input Bit, 15: Output Bit)
 $26    NO16 (W)         LLLLRRRR    L/R: Left/Right Volume (0: Mute, 15: Loudest)
-$27    NO17 (W)         S-----EN    S: Channel Switch (0: Stop, 1: Start), E: Slope Mod Enable, N: Noise Enable
+$27    NO17 (W)         S-----EN    S: Channel Switch (0: Stop, 1: Start), E: AM Enable, N: Noise Enable
 
 $28    LVL  (W)         AABBLLRR    A/B: Left/Right Audio Inputs' Volumes, L/R: DAC Left/Right Volume (0: Mute, 3: Loudest)
 $29    NO21 (W)         FFFFFFFF    Fine-Tune
@@ -130,7 +134,7 @@ $2B    NO23 (R/W)       LLLLLLLL    LFSR State [7:0]
 $2C    NO24 (R/W)       LLLLLLLL    LFSR State [15:8]
 $2D    NO25 (W)         AAAABBBB    A: Main Tap, B: Noise XOR Tap (0: Input Bit, 15: Output Bit)
 $2E    NO26 (W)         LLLLRRRR    L/R: Left/Right Volume (0: Mute, 15: Loudest)
-$2F    NO27 (W)         S-----EN    S: Channel Switch (0: Stop, 1: Start), E: Slope Mod Enable, N: Noise Enable
+$2F    NO27 (W)         S-----EN    S: Channel Switch (0: Stop, 1: Start), E: AM Enable, N: Noise Enable
 
 $30    DAC  (W)         DDDDDDDD    DAC Amplitude
 $31    NO31 (W)         FFFFFFFF    Fine-Tune
@@ -139,7 +143,7 @@ $33    NO33 (R/W)       LLLLLLLL    LFSR State [7:0]
 $34    NO34 (R/W)       LLLLLLLL    LFSR State [15:8]
 $35    NO35 (W)         AAAABBBB    A: Main Tap, B: Noise XOR Tap (0: Input Bit, 15: Output Bit)
 $36    NO36 (W)         LLLLRRRR    L/R: Left/Right Volume (0: Mute, 15: Loudest)
-$37    NO37 (W)         S-----EN    S: Channel Switch (0: Stop, 1: Start), E: Slope Mod Enable, N: Noise Enable
+$37    NO37 (W)         S-----EN    S: Channel Switch (0: Stop, 1: Start), E: AM Enable, N: Noise Enable
 
 $38    SCNT (R/W)       -CCCCCCC    Slope Accumulator
 $39    SLO1 (W)         FFFFFFFF    Fine-Tune
@@ -175,8 +179,8 @@ $49    COMTOUT (W)      TTTTTTTT    Transfer Out Data Byte
 $4A    CONL (R/W)       DDDDDDDD    Left Controller Data Port
 $4B    CONR (R/W)       DDDDDDDD    Right Controller Data Port
 $4C    CARTOUT (R/W)    OOOOOOOO    O: Cartridge Output Lines (8-bit cart bus mode only)
-$4D    CSMOD (R/W)      ---MXXXX    M: CS1 Mode (0: ROM, 1: Normal), X: Bound Setting (CS1 = addr >= $01X000; CS2 = addr < $01X000)
-$4E    WAITCR (R/W)     ---W-RRR    W: Cart Data Bus Width (0: 8-bit, 1: 16-bit), R: ROM Access Waitstate Count
+$4D    CSMOD (R/W)      ---MXXXX    M: CS1 Mode (0: Behave as ROM, 1: Normal), X: Boundary (CS1 = addr >= $01X000; CS2 = addr < $01X000)
+$4E    BUSCR (R/W)      ACCCBRRR    A/B: CSx/ROM Data Bus Width (0: 8-bit, 1: 16-bit), C/R: CSx/ROM Access Waitstate Count
 $4F    IRSR (R)         L------I    L: Signal from Receiver, I: Infrared Light Switch (0: on, 1: off)
 $4F    IRCR (W)         -S-----I    S: Infrared Receiver Signal Read Enable, ...
 
@@ -215,14 +219,14 @@ $6D    D2DAH (R/W)      0000000D    DMA 2 Destination Address [16]
 $6E    D2CNTL (R/W)     CCCCCCCC    DMA 2 Counter [7:0]
 $6F    D2CNTH (R/W)     CCCCCCCC    DMA 2 Counter [15:8] (65536-C bytes/words)
 
-$70    BLCR (R/W)       E-------    E: Enable Backlight Driver
-$71    BLRI (R/W)       RRRRRRRR    Red/Monochrome Intensity  (0: Off, 255: Brightest)
-$72    BLGI (R/W)       GGGGGGGG    Green Intensity           (0: Off, 255: Brightest)
-$73    BLBI (R/W)       BBBBBBBB    Blue Intensity            (0: Off, 255: Brightest)
+$70    BLCR (W)         E-------    E: Enable Backlight Driver
+$71    BLRI (W)         RRRRRRRR    Red/Monochrome Intensity  (0: Off, 255: Brightest)
+$72    BLGI (W)         GGGGGGGG    Green Intensity           (0: Off, 255: Brightest)
+$73    BLBI (W)         BBBBBBBB    Blue Intensity            (0: Off, 255: Brightest)
 $74    <reserved>
 $75    <reserved>
-$76    SETKEYL (W)      KKKKKKKK    K: Key To Access Backlight Setting RAM [7:0]
-$77    SETKEYH (W)      KKKKKKKK    K: Key To Access Backlight Setting RAM [15:8]
+$76    SETKEYL (W)      KKKKKKKK    K: Key To Access Backlight Settings' RAM [7:0]
+$77    SETKEYH (W)      KKKKKKKK    K: Key To Access Backlight Settings' RAM [15:8]
 $78    SETB0 (R(/W))    SSSSSSSS    S: Backlight Settings Byte 0
 $79    SETB1 (R(/W))    SSSSSSSS    S: Backlight Settings Byte 1
 $7A    SETB2 (R(/W))    SSSSSSSS    S: Backlight Settings Byte 2
@@ -258,19 +262,21 @@ LCD Modes:
 
 PPU Background Modes:
 
-Mode    BG1     BG2     Description
-0       0123    0123    Packed bitmap-friendly tile mode
-1       0123    0123    Planar tile mode
-2       012-    ---3    Planar tile mode (free 2-layer)
-3       01--    --23    Planar tile mode (free 2-layer)
+Mode    BG1     BG2     Tilemap Dimensions    Description
+0       0123    ----    64x32 or 32x64        Packed bitmap-friendly tile mode
+1       0123    ----    64x32 or 32x64        Planar tile mode
+2       012-    ---3    32x32 (x2)            Planar tile mode (free 2-layer)
+3       01--    --23    32x32 (x2)            Planar tile mode (free 2-layer)
 
-While modes 0 and 1 have only one layer, 2-layer screens can be faked with the "priority" bits in the map tiles.
+By default, BG1 is high-priority and BG2 is low-priority.
 
-Submode    Mode 0/1                               Mode 2/3
-0          Horizontal arrangement, BG1X[8] = 0    Normal
-1          Horizontal arrangement, BG1X[8] = 1    Swap BG1 and BG2
-2          Vertical arrangement, BG1Y[8] = 0      Modulate BG2 and low-priority sprites' PAL indexes using BG1 pixels
-3          Vertical arrangement, BG1Y[8] = 1      Swap, modulate BG1 and low-priority sprites' PAL indexes using BG2 pixels
+Modes 0 and 1 only use BG1. 2 layers can be achieved by using the "priority" bits in the map tiles.
+
+Submode    Mode 0/1                          Mode 2/3
+0          64x32 arrangement, BG1X[8] = 0    Normal
+1          64x32 arrangement, BG1X[8] = 1    Swap BG1 and BG2
+2          32x64 arrangement, BG1Y[8] = 0    Replace BG2's PAL values with BG1 pixel values (palette modulation)
+3          32x64 arrangement, BG1Y[8] = 1    Swap BG1 and BG2, replace BG1's PAL values with BG2 pixel values (palette modulation)
 
 The high-priority background must be actually on for palette modulation to work.
 
@@ -284,6 +290,9 @@ Tilemap Access Auto-Increment Procedure:
    - If the X/Y address wraps back to 0, increment the other address by 1.
 
 In background modes 0 and 1, the T bit serves as a bit 5 of either the X or Y address, determined by the background submode.
+- The auto-increment procedure should affect T in this situation.
+
+In background modes 2 and 3, the T bit specifies the background to access the tilemap of. 0 means BG1's map, and 1 means BG2's map.
 
 
 Tilemap Format:
@@ -291,10 +300,10 @@ Tilemap Format:
           A    76543210
 Packed
           0    YXXXXXXX    Y: Bitmap Y Position [0], X: Bitmap X Position [7:1] ([0] is always 0)
-          1    PYYYYYYY    P: Priority (0: BG1/high, 1: BG2/low), Y: Bitmap Y Position [7:1]
+          1    PYYYYYYY    P: Priority (0: high, 1: low), Y: Bitmap Y Position [7:1]
 4BPP
           0    CCCCCSHV    C: Character ID [4:0], S: Show Tile, H/V: Horizontal/Vertical Flip
-          1    P--CCCCC    P: Priority (0: BG1/high, 1: BG2/low), C: Character ID [9:5]
+          1    P--CCCCC    P: Priority (0: high, 1: low), C: Character ID [9:5]
 3BPP
           0    CCCCCSHV    C: Character ID [4:0], S: Show Tile, H/V: Horizontal/Vertical Flip
           1    P--CCCCC    P: PAL Select [2], C: Character ID [9:5]
@@ -329,7 +338,7 @@ Its main purpose is to provide timing signals for the Pilot, Radar, Power Noise,
 Bits 10-3 of the divider can be read using the CDIV register.
 
 DIV: 1024                            1
-      10 09 08 07 06 05 04 03 02 01 00 <- [CLK]
+      10 09 08 07 06 05 04 03 02 01 00 <- [/2] <- [CLK]
        |  |  |  |  |  |  |  |  |  |  |
        |  o--o--o--o--o--o--o--o---------------> Power Noise and Timers A/B
        o--o--o--o--o--o--o--o------------------> CDIV
