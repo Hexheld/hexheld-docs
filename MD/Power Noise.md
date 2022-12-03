@@ -74,7 +74,7 @@ In order for sound to be output, flags in `ACR` must be enabled:
 
 | Bit 7 | Bit 6 | Bit 5 | Bit 4 | Bit 3 | Bit 2 | Bit 1 | Bit 0 |
 | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| Master Enable | | External | PCM | Slope | Noise 3 | Noise 2 | Noise 1 |
+| Audio Output | | External | PCM | Slope | Noise 3 | Noise 2 | Noise 1 |
 
 Bits 0 to 4 correspond with the 5 sound channels. If a bit transitions from clear to set, the channel will start working and be audible. Clearing a bit will freeze the channel and cause it to always output an amplitude of `0`. The registers of the channel can still be accessed while frozen.
 
