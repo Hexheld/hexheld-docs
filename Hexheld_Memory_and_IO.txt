@@ -118,18 +118,18 @@ $1D    NUM5 (W)         -NNNNNNN    Segment Display Number 5
 $1E    NUM6 (W)         -NNNNNNN    Segment Display Number 6
 $1F    NUM7 (W)         -NNNNNNN    Segment Display Number 7
 
-$20    ACR  (W)         E--DSCBA    E: Audio Output Enable, D/S: DAC/Slope Enable, C/B/A: Noise 3/2/1 Enable
-$21    NO11 (W)         FFFFFFFF    Fine-Tune
-$22    NO12 (W)         -----CCC    Octave Clock Select (0-7: DIV4/8/16/32/64/128/256/512)
+$20    ACR  (W)         E-XDSCBA    E: Audio Output Enable, X: Expansion Audio Enable, D/S: DAC/Slope Enable, C/B/A: Noise 3/2/1 Enable
+$21    NO11 (W)         FFFFFFFF    Frequency [7:0]
+$22    NO12 (W)         FFFFFFFF    Frequency [15:8]
 $23    NO13 (R/W)       LLLLLLLL    LFSR State [7:0]
 $24    NO14 (R/W)       LLLLLLLL    LFSR State [15:8]
 $25    NO15 (W)         AAAABBBB    A: Main Tap, B: Noise XOR Tap (0: Input Bit, 15: Output Bit)
 $26    NO16 (W)         LLLLRRRR    L/R: Left/Right Volume (0: Mute, 15: Loudest)
 $27    NO17 (W)         S-----EN    S: Channel Switch (0: Stop, 1: Start), E: AM Enable, N: Noise Enable
 
-$28    LVL  (W)         AABBLLRR    A/B: Left/Right Audio Inputs' Volumes, L/R: DAC Left/Right Volume (0: Mute, 3: Loudest)
-$29    NO21 (W)         FFFFFFFF    Fine-Tune
-$2A    NO22 (W)         -----CCC    Octave Clock Select (0-7: DIV4/8/16/32/64/128/256/512)
+$28    LVL  (W)         -OOOLLRR    O: Overall Noise/Slope/PCM Volume (0: Mute, 7: Loudest), L/R: DAC Left/Right Volume
+$29    NO21 (W)         FFFFFFFF    Frequency [7:0]
+$2A    NO22 (W)         FFFFFFFF    Frequency [15:8]
 $2B    NO23 (R/W)       LLLLLLLL    LFSR State [7:0]
 $2C    NO24 (R/W)       LLLLLLLL    LFSR State [15:8]
 $2D    NO25 (W)         AAAABBBB    A: Main Tap, B: Noise XOR Tap (0: Input Bit, 15: Output Bit)
@@ -137,8 +137,8 @@ $2E    NO26 (W)         LLLLRRRR    L/R: Left/Right Volume (0: Mute, 15: Loudest
 $2F    NO27 (W)         S-----EN    S: Channel Switch (0: Stop, 1: Start), E: AM Enable, N: Noise Enable
 
 $30    DAC  (W)         DDDDDDDD    DAC Amplitude
-$31    NO31 (W)         FFFFFFFF    Fine-Tune
-$32    NO32 (W)         -----CCC    Octave Clock Select (0-7: DIV4/8/16/32/64/128/256/512)
+$31    NO31 (W)         FFFFFFFF    Frequency [7:0]
+$32    NO32 (W)         FFFFFFFF    Frequency [15:8]
 $33    NO33 (R/W)       LLLLLLLL    LFSR State [7:0]
 $34    NO34 (R/W)       LLLLLLLL    LFSR State [15:8]
 $35    NO35 (W)         AAAABBBB    A: Main Tap, B: Noise XOR Tap (0: Input Bit, 15: Output Bit)
@@ -146,8 +146,8 @@ $36    NO36 (W)         LLLLRRRR    L/R: Left/Right Volume (0: Mute, 15: Loudest
 $37    NO37 (W)         S-----EN    S: Channel Switch (0: Stop, 1: Start), E: AM Enable, N: Noise Enable
 
 $38    SCNT (R/W)       -CCCCCCC    Slope Accumulator
-$39    SLO1 (W)         FFFFFFFF    Fine-Tune
-$3A    SLO2 (W)         -----CCC    Octave Clock Select (0-7: DIV4/8/16/32/64/128/256/512)
+$39    SLO1 (W)         FFFFFFFF    Frequency [7:0]
+$3A    SLO2 (W)         FFFFFFFF    Frequency [15:8]
 $3B    SLO3 (W)         AAAAAAAA    Slope A Period
 $3C    SLO4 (W)         BBBBBBBB    Slope B Period
 $3D    SLO5 (W)         AAAABBBB    A/B: Slope A/B Accumulator Offset
@@ -159,19 +159,19 @@ $40    D1CR (W)         SRWMMMTT    S: Start, ...
 $41    D2SR (R)         ARWMMMTT    A: Active, R: Repeat, W: Word Size, M: Mode, T: Timing (0: Instant, 1: COMR, 2: TIMA, 3: EXT)
 $41    D2CR (W)         SRWMMMTT    S: Start, ...
 
-$42    TIMASR (R)       R--SCCCC    R: Running, S: One-Shot, C: Clock (0-7: DIV4/8/16/32/64/128/256/512, 8: EXT, 9-15: reserved)
+$42    TIMASR (R)       R--SCCCC    R: Running, S: One-Shot, C: Clock (0-7: DIV4/8/16/32/64/128/256/512, 8: SUB, 9: EXT, 10-15: reserved)
 $42    TIMACR (W)       E--SCCCC    E: Enable, ...
 $43    TIMACNTL (R)     CCCCCCCC    Timer A Counter [7:0]
 $43    TIMARL (W)       RRRRRRRR    Timer A Reload Value [7:0]
-$44    TIMACNTH (R)     ---CCCCC    Timer A Counter [12:8]
-$44    TIMARH (W)       ---RRRRR    Timer A Reload Value [12:8] (Hz = clockFreq/(8192-R))
+$44    TIMACNTH (R)     CCCCCCCC    Timer A Counter [15:8]
+$44    TIMARH (W)       RRRRRRRR    Timer A Reload Value [15:8] (Hz = clockFreq/(8192-R))
 
-$45    TIMBSR (R)       R--SCCCC    R: Running, S: One-Shot, C: Clock (0-7: DIV4/8/16/32/64/128/256/512, 8: TIMA, 9-15: reserved)
+$45    TIMBSR (R)       R--SCCCC    R: Running, S: One-Shot, C: Clock (0-7: DIV4/8/16/32/64/128/256/512, 8: SUB, 9: TIMA, 10-15: reserved)
 $45    TIMBCR (W)       E--SCCCC    E: Enable, ...
 $46    TIMBCNTL (R)     CCCCCCCC    Timer B Counter [7:0]
 $46    TIMBRL (W)       RRRRRRRR    Timer B Reload Value [7:0]
-$47    TIMBCNTH (R)     ---CCCCC    Timer B Counter [12:8]
-$47    TIMBRH (W)       ---RRRRR    Timer B Reload Value [12:8] (Hz = clockFreq/(8192-R))
+$47    TIMBCNTH (R)     CCCCCCCC    Timer B Counter [15:8]
+$47    TIMBRH (W)       RRRRRRRR    Timer B Reload Value [15:8] (Hz = clockFreq/(8192-R))
 
 $48    COMSR (R)        TR------    T: Transfer Out in Progress, R: New Data Received
 $49    COMRDAT (R)      RRRRRRRR    Received Data Byte (clears R in COMSR)
@@ -340,7 +340,8 @@ Bits 10-3 of the divider can be read using the CDIV register.
 DIV: 1024                            1
       10 09 08 07 06 05 04 03 02 01 00 <- [/2] <- [CLK]
        |  |  |  |  |  |  |  |  |  |  |
-       |  o--o--o--o--o--o--o--o---------------> Power Noise and Timers A/B
+       |  o--o--o--o--o--o--o--o---------------> Timers A/B
        o--o--o--o--o--o--o--o------------------> CDIV
-                               |  o------------> Radar Clock (reacts on low edge)
                                o--o--o---------> Pilot Clock Settings (reacts on high edge)
+                                  o------------> Radar Clock (reacts on low edge)
+                                     o---------> Power Noise Clock
