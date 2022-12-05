@@ -113,7 +113,7 @@ Volume represents how loud a sound source is. All 5 sound channels have volume c
 As the sound output is stereo, separate volume controls are provided for the left and right sides for each channel.
 
 
-### Noise & Slope
+### Noise & Slope Volumes
 
 Volume is specified for these channels in the `NOx6` and `SLO6` registers. They all have the same format:
 
@@ -131,13 +131,13 @@ For the slope channel, the volume value is a 4-bit AND mask that is applied to t
 - `$8` to `$F` - No shift
 
 
-### PCM & Overall Audio
+### PCM & Overall Audio Volumes
 
 The volume of the PCM sound channel, as well as the overall audio volume, are specified in the `LVL` register:
 
 | Bit 7 | Bits 6-4 | Bits 3-2 | Bits 1-0 |
 | :-: | :-: | :-: | :-: |
-| | Overal Audio | PCM Left | PCM Right |
+| | Overall Audio | PCM Left | PCM Right |
 
 PCM volume level does not scale linearly with value. When incorporating the 8-bit `DAC` amplitude in the output, it is logically-shifted a certain number of bits to the right depending on the 2-bit volume value:
 
@@ -177,7 +177,7 @@ The `NOx5` registers specify the bit positions of the LFSR taps. They all have t
 A value of `$0` specifies the least-significant bit (`$0001`), and a value of `$F` specifies the most-significant bit (`$8000`), of the shift register.
 
 
-### Control
+### Noise Control
 
 The `NOx7` registers manage the operation of the noise channels. They all have the same format:
 
@@ -196,9 +196,9 @@ If bit 7 is clear, the frequency generator is paused, preventing the noise algor
 
 ### Noise Algorithm and Output Procedure
 
-Every time the frequency phase accumulator wraps around, a pseudo-random bit is produced according to the specified tap locations and whether Tap B is enabled. The shift register contents is shifted left by one bit position, and the new bit 0 is the pseudo-random bit. The state of bit 15 is lost.
+At the frequency specified by `NOx1` and `NOx2`, a pseudo-random bit is produced according to the specified tap locations and whether Tap B is enabled. The shift register contents is shifted left by one bit position, and the new bit 0 is the pseudo-random bit. The state of bit 15 is lost.
 
-Bit 15 of the shift register contains the binary amplitude that is incorporated in the output as well as the amplitude modulation feature. If clear, the amplitude is low. If set, the amplitude is high.
+Bit 15 of the shift register contains the binary amplitude that is incorporated in the output as well as the slope channel's amplitude modulation feature. If clear, the amplitude is low. If set, the amplitude is high.
 
 A noise channel's output value is 4-bit. If the binary amplitude is low, `$0` is output. If the amplitude is high, the 4-bit volume value is output.
 
@@ -220,16 +220,14 @@ Portion A is the one to be played first, then Portion B comes after. Both portio
 
 ### Accumulator
 
-The `SCNT` register is the accumulator value. It can be read and written.
-
-Only the lower 7 bits are significant. The upper-most bit is unused and is always clear when read.
+The `SCNT` register is the accumulator value, which can be read and written. Only the lower 7 bits are significant. The upper-most bit is unused and is always clear when read.
 
 The upper 4 bits of the accumulator are used as the slope amplitude value. In essence, the accumulator is a 4.3 unsigned [fixed-point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic) value which gets rounded down.
 
 
 ### Portion Length
 
-The lengths of the portions are defined as 8-bit values. The length of Portion A is specified in the `SLO3` register, and the length of Portion B is specified in the `SLO4` register. Add 1 to these values for the actual lengths in samples.
+The lengths of the portions are defined as 8-bit values. The length of Portion A is written in the `SLO3` register, and the length of Portion B is written in the `SLO4` register. Add 1 to these values for the actual lengths in samples.
 
 The total duration of a wave is the durations of both portions added together. Note that depending on slope flags, there may be an "attack" period before the repeating wave, or the actual duration of the wave may be longer than this sum.
 
@@ -245,18 +243,18 @@ An offset value represents how much is added to or subtracted from the accumulat
 The maximum offset is `15`. If the accumulator value is interpreted as fixed-point, the maximum considered offset is `1.875`.
 
 
-### Flags
+### Slope Flags
 
 Flags specify how to modify the accumulator on every sample of a portion. They are contained in the lower 6 bits of the `SLO7` register.
 
 Bits 0 and 1 specify the modification direction of Portions B and A, respectively. If clear, offset is added to the accumulator. If set, offset is subtracted from the accumulator.
 
-Bits 2 and 3 specify that the accumulator should reset on the first sample of Portions B and A, respectively. If clear, the accumulator will be modified by an offset as normal. If set, the accumulator will instead be directly set to `$00` for addition or `$7F` for subtraction.
+Bits 2 and 3 specify that the accumulator should reset on the first sample of Portions B and A, respectively. If clear, the accumulator will be modified by an offset as normal. If set, the accumulator will instead be directly set to `$00` if the portion adds, or `$7F` if the portion subtracts.
 
-Bits 4 and 5 specify how to handle accumulator overflows/underflows in Portions B and A, respectively. If clear, the accumulator value will wrap around and continue on the other end of the range. If set, the accumulator value will be clipped at `$7F` on overflow or `$00` on underflow.
+Bits 4 and 5 specify how to handle accumulator overflows/underflows in Portions B and A, respectively. If clear, the accumulator value will wrap around and continue from the other extreme. If set, the accumulator value will be clipped at `$7F` on overflow or `$00` on underflow.
 
 
-### Control
+### Slope Control
 
 The `SLO7` register manages the operation of the slope channel:
 
@@ -266,23 +264,23 @@ The `SLO7` register manages the operation of the slope channel:
 
 Bits 0 to 5 specify the slope flags. See above for information.
 
-If bit 6 is set in the write, the slope wave generation resets to the first sample of Portion A. This reset is automatically performed on Hexheld system reset.
+If bit 6 is set in the write, the slope generator is explicitly reset to the beginning of Portion A. This reset is automatically performed on Hexheld system reset. Clearing bit 6 has no effect.
 
 If bit 7 is clear, the frequency generator is paused, preventing the slope algorithms from working and the slope accumulator from automatically updating.
 
 
 ### Amplitude Modulation (AM)
 
-When this feature is enabled from the `NOx7` registers, the slope amplitude level is effectively ANDed with the binary amplitudes of one or more noise channels, enabling complex sound effects and timbres to be generated.
+When this feature is enabled from `NOx7` registers, the slope amplitude level is effectively ANDed with the binary amplitudes of one or more noise channels, enabling complex sound effects and timbres to be generated. Noise channels may still output sound when being used as AM sources.
 
 If the binary amplitude of the noise channel is high, the slope output level is unmodified. However, if low, the slope output level is forced to be `$0`.
 
 If AM is enabled from multiple noise channels, their binary amplitudes will be ANDed together. As such, if either of the amplitudes is low, the slope output level is forced to be `$0`.
 
 
-### Output Procedure
+### Slope Output Procedure
 
-Every time the frequency phase accumulator wraps around, the slope accumulator is modified according to the algorithms.
+At the frequency specified by `SLO1` and `SLO2`, the slope accumulator is modified according to the algorithms.
 
 The upper 4 bits of the 7-bit slope accumulator value are used as the 4-bit wave amplitude value. This amplitude value goes through amplitude modulation if enabled, then goes through the shifting and masking logic for volume reduction.
 
@@ -292,7 +290,7 @@ The upper 4 bits of the 7-bit slope accumulator value are used as the 4-bit wave
 
 This channel outputs an arbitrary 8-bit unsigned amplitude written to the `DAC` register. The sound chip does not automatically modify `DAC` to produce a waveform, so samples must be provided by the CPU or DMA controller.
 
-The 8-bit amplitude is shifted right by a certain number of bits according to the 2-bit volume setting in `LVL` to produce the actual unsigned output level value for the channel.
+The `DAC` value is shifted right by a certain number of bits according to the 2-bit volume setting in `LVL` to produce the actual unsigned output level value for this channel.
 
 
 ### PCM Playback with DMA
@@ -305,7 +303,7 @@ As the Hexheld memory address bus is 24 bits wide, up to 16 MB of PCM sound data
 
 
 
-## Output Procedure
+## Global Output Procedure
 
 The noise and slope channels are mixed together digitally—by adding their 4-bit output values together—to produce a 6-bit unsigned linear mix. The highest possible sum for this mix is `60`. The PCM channel is mixed with these channels in an analog fashion. This analog mix then gets attenuated according to the 3-bit overall volume setting. Finally, external audio comes in.
 
@@ -315,6 +313,12 @@ NOTE: As the output is stereo, the same mixing algorithms apply for both sides, 
 
 ## Reset
 
-When the Hexheld system is reset, all Power Noise registers are initialized with `$00`.
+Upon Hexheld system reset, almost all Power Noise registers are initialized to `$00`. The exception is `SLO7` which is initialized to `$40`, so the slope generator is guaranteed to start at the beginning of Portion A.
 
-Since the slope wave generation resets as well, it may be thought that `SLO7` is initialized with `$40`.
+
+
+---
+# To-do
+
+- Document the exact digital mixing rate for the noise and slope channels, once it has been decided.
+- Document more specifics regarding the frequency up-counters.
