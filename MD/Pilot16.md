@@ -191,14 +191,14 @@ Instruction operands come in several varieties. These varieties are collectively
 
 ### Register Direct
 
-The operand specifies a register. When writing the operand, it is simply the register's name without anything preceding or following it.
+The operand is a CPU register. When writing the operand, it is simply the register's name without anything preceding or following it.
 
 When a Z register is specified, it is technically an absolute memory operand.
 
 
 ### Extension Register
 
-A subtype of Register Direct, where the operand specifies a 16-bit extension of an 8-bit register. Extension registers can be a source operand, but cannot be a read-modify-write or destination operand.
+The operand is a 16-bit extension of an 8-bit register. Extension registers can be a source operand, but cannot be a read-modify-write or destination operand. This is a subtype of Register Direct.
 
 The following extension registers are available:
 
@@ -209,7 +209,7 @@ The following extension registers are available:
 
 ### Memory - Absolute
 
-The operand specifies a memory access using a literal linear address or offset.
+The operand is a memory access using a literal linear address or offset.
 
 The following variations of absolute addressing are available:
 
@@ -222,7 +222,7 @@ The following variations of absolute addressing are available:
 
 ### Memory - Register Offset
 
-The operand specifies a memory access using a register's value as the offset portion. The memory access may use bank `$00` or the data segment.
+The operand is a memory access using a register's value as the offset portion. The memory access may use bank `$00` or the data segment.
 
 The offset register may be `AB`, `HL`, `IX`, `DS`, or a Z register. For the latter, an additional memory access is performed to get the Z register's value.
 
@@ -233,7 +233,7 @@ NOTE: The processor does not support `DS:[DS]`.
 
 ### Memory - Automatic Index
 
-The operand specifies a memory access using a register's value as the offset portion, with the register being modified by an amount after the access. The memory access may use bank `$00` or the data segment.
+The operand is a memory access using a register's value as the offset portion, with the register being modified by an amount after the access. The memory access may use bank `$00` or the data segment. This is a subtype of Register Offset.
 
 The offset register may be `HL`, `IX`, or a Z register. For the latter, two additional memory accesses are performed before and after to get the Z register's value and write the auto-index modification, respectively.
 
@@ -241,14 +241,14 @@ The register value may be either increased or decreased. The amount is implicit 
 
 When the data segment is used and if the instruction allows, the `A` flag reports whether the register value wrapped and that a segment adjustment is required. For more information, see **Segment Adjust**.
 
-The operand is written the same way as a Register Offset operand, but the register name has a "`+`" or "`-`" suffix. For example, an auto-increase of `IX` with the data segment is written as "`DS:[IX+]`".
+When writing the operand, the register name requires either a "`+`" or "`-`" suffix to be appended. For example, an auto-increase of `IX` with the data segment is written as "`DS:[IX+]`".
 
 > Editor's Note: Incorporate the cycle penalties for auto-indexing into this document.
 
 
 ### Memory - Displacement Index
 
-The operand specifies a memory access where the offset portion is the calculated sum of two values. If the sum exceeds `$FFFF`, it will wrap back to `$0000` and continue up from there.
+The operand is a memory access where the offset portion is the calculated sum of two values. If the sum exceeds `$FFFF`, it will wrap back to `$0000` and continue up from there.
 
 The following variations of displacement-indexed addressing are available:
 
@@ -265,7 +265,7 @@ Since the ALU is used to compute the offset, an additional cycle is spent.
 
 ### I/O Addressing
 
-The operand specifies an I/O access. The following variations of I/O addressing are available:
+The operand is an I/O access. The following variations of I/O addressing are available:
 
 - `[C]` - The port specified by `C` is accessed.
 - `[C+]` - The port specified by `C` is accessed, then `C` is increased by 1.
@@ -398,7 +398,7 @@ When writing an instruction, its *mnemonic* is written first. If operands are pr
 - **Source** - The operand is only read from. It is the right-most operand.
 - [**Read-Modify-Write (RMW)**](https://en.wikipedia.org/wiki/Read%E2%80%93modify%E2%80%93write)
 - **Destination** - The operand is only written to.
-- **Bit Number** - The operand specifies bit number of the following operand. It is the left-most operand.
+- **Bit Number** - The operand specifies the bit number in question for bit instructions. It is the left-most operand.
 - **Condition Code** - The operand represents the conditional execution code. It is the left-most operand.
 
 
@@ -407,7 +407,7 @@ When writing an instruction, its *mnemonic* is written first. If operands are pr
 
 CPU operations may be performed on either 8-bit or 16-bit data types. The size is either specified by one of the bits in the opcode word, or is implied in the instruction. Size influences the bit width of computations and whether memory operand accesses will be 8-bit or 16-bit.
 
-When writing instructions, size can be specified by suffixing a letter to the instruction's mnemonic: "`B`" for 8-bit or "`W`" for 16-bit. For example, 16-bit `INC` is written as "`INCW`".
+When writing instructions, size can be specified by appending a suffix to the instruction's mnemonic: "`.B`" for 8-bit or "`.W`" for 16-bit. For example, 16-bit `INC` is written as "`INC.W`".
 
 NOTE: Operation size is evident if a register direct operand is present (the register's name implies its size), so the suffix is optional. In some cases (such as a `LD` instruction having both operands be memory accesses), it is not evident. The default operation size is 8-bit.
 
@@ -869,7 +869,7 @@ The opcode word corresponding to `DAA` is `$1001`, and the opcode word correspon
 
 ## Instruction Set - Bitwise Logic
 
-Instructions in this category perform [bitwise binary operations](https://en.wikipedia.org/wiki/Bitwise_operation) on data using the ALU.
+Instructions in this category perform [bitwise operations](https://en.wikipedia.org/wiki/Bitwise_operation) on data using the ALU.
 
 For all of these instructions, flags are affected as follows:
 
@@ -915,3 +915,31 @@ The following encodings are available for `CPL`:
 | :-: | :-: | :- |
 | `0010 0010 100m mmmm` | 8-bit | RM.RMW |
 | `0010 0110 100m mmmm` | 16-bit | RM.RMW |
+
+
+
+## Instruction Set - Shift & Rotate
+
+Instructions in this category perform bit position shift and rotation operations on data.
+
+
+### `SLA` - Shift Left Arithmetic
+
+Operation: `rmw <<= 1`
+
+Shifts the read-modify-write operand left by one bit position, and clears its lowest bit. This effectively performs a multiplication by 2.
+
+Flags:
+
+- `--IH--D-` - Not modified.
+- `S-------` - Set if the result is negative, cleared if not. This directly copies its highest bit.
+- `-Z------` - Set if the result is zero, cleared if not.
+- `----A--C` - These flags receive copies of the original highest bit of the operand which was shifted out.
+- `-----V--` - Set when the highest bit of the operand transitions to the opposite state, cleared otherwise.
+
+The following encodings are available for `SLA`:
+
+| Opcode Word | Operation Size | Read-Modify-Write |
+| :-: | :-: | :- |
+| `0011 0000 100m mmmm` | 8-bit | RM.RMW |
+| `0011 0100 100m mmmm` | 16-bit | RM.RMW |
