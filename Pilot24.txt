@@ -1,0 +1,765 @@
+
+*** INFORMATION ***
+
+This is a fantasy CPU created by The Beesh-Spweesh!, designed to replace the previous 16-bit Pilot CPU design.
+
+This CPU has a 24-bit address bus, meaning it can access 16 MB of memory.
+The data bus is 16-bit, though sometimes it is restricted to 8-bit.
+
+This CPU contains a 24-bit ALU, allowing it to process pointer arithmetic in 1 cycle.
+
+
+*** REGISTER MODEL ***
+
+23 22 21 20 19 18 17 16 15 14 13 12 11 10  9  8  7  6  5  4  3  2  1  0
+------------------------------------------------------------------------  Main
+[                      ||         <M0>         W0         <L0>         ]    P0
+[                      ||         <M1>         W1         <L1>         ]    P1
+[                      ||         <M2>         W2         <L2>         ]    P2
+[                      ||         <M3>         W3         <L3>         ]    P3
+[                      ||                      W4                      ]    P4
+[                      ||                      W5                      ]    P5
+[                      ||                      W6                      ]    P6
+[                      ||                      W7                      ]    P7/SP (Stack Pointer)
+------------------------------------------------------------------------  System
+                        [          W           ][          F           ]    WF (Status Register)
+[                                 PGC                                  ]    Program Counter
+------------------------------------------------------------------------  Internal
+                                                         [             ]    REPI State
+                                                            [ ][       ]    REPR State
+
+P0 and P7 are used implicitly by some CPU operations.
+
+WF Format:
++-+-+-+-+-+-----+-+-+-+-+-+-+-+-+
+|0|0|0|0|0| IRL |S|Z|0|0|C|V|D|X|
++-+-+-+-+-+-----+-+-+-+-+-+-+-+-+
+             |   | |     | | | |
+             |   | |     | | | +-----  X    Extend Carry
+             |   | |     | | +-------  D    Decimal Mode (0: Off, 1: On)
+             |   | |     | +---------  VP   Signed Overflow / Parity (0: Odd, 1: Even)
+             |   | |     +-----------  C    Carry
+             |   | +-----------------  Z    Zero
+             |   +-------------------  S    Sign (0: Positive, 1: Negative)
+             +-----------------------  IRL  Interrupt Request Level
+
+X is a ditto of C, specifically used to chain arithmetic operations together to deal with large numbers.
+
+Decimal Mode applies to the byte (.B) versions of ADD, ADX, SUB, SBX, NEG, and NGX.
+
+IRL specifies which IRQ levels should be monitored.
+Only the IRQ numbers less than IRL and the one equal to IRL will be processed. The greater ones will be masked out.
+
+Bit 0 of PGC is fixed to zero. This means that instruction words must be word-aligned.
+
+
+*** INSTRUCTION OPERAND ENCODINGS ***
+
+Size:
+0 - Byte    (.B, 8-bit)
+1 - Word    (.W, 16-bit)
+2 - Pointer (.P, 24-bit)
+
+Registers:
+    .B (r8)  .W (r16)  .P (r24)
+0 - L0       W0        P0
+1 - L1       W1        P1
+2 - L2       W2        P2
+3 - L3       W3        P3
+4 - M0       W4        P4
+5 - M1       W5        P5
+6 - M2       W6        P6
+7 - M3       W7        P7/SP
+
+Conditions:
+       Code        Check
+0   -  LE          S != VP || Z == 1    Signed Less Than or Equal
+1   -  GT          S == VP && Z == 0    Signed Greater Than
+2   -  LT          S != VP              Signed Less Than
+3   -  GE          S == VP              Signed Greater Than or Equal
+4   -  ULE         C == 1 || Z == 1     Unsigned Less Than or Equal
+5   -  UGT         C == 0 && Z == 0     Unsigned Greater Than
+6   -  C / ULT     C == 1               Carry / Unsigned Less Than
+7   -  NC / UGE    C == 0               No Carry / Unsigned Greater or Equal
+8   -  M           S == 1               Minus Sign
+9   -  P           S == 0               Plus Sign
+10  -  OV / PE     VP == 1              Overflow / Parity Even
+11  -  NOV / PO    VP == 0              No Overflow / Parity Odd
+12  -  Z / EQ      Z == 1               Zero / Equal
+13  -  NZ / NE     Z == 0               Not Zero / Not Equal
+
+
+*** RM OPERANDS ***
+
+A flexible type of operand which adds a level of orthogonality to the instruction set.
+
+0rrr00             r8/r16/r24     Register Direct
+0rrr01  imm16      @r24+simm16    Register Relative
+0rrr10             @r24           Register Indirect
+1rrr00             @r24+          Register Indirect with Post-Increment
+100001  imm16      simm16         Immediate
+100101  imm24      imm24          Immediate
+101001  imm16      @simm16        Absolute
+101101  imm24      @imm24         Absolute
+110001  imm16      @PGC+simm16    PGC Relative
+110101  imm24      @PGC+imm24     PGC Relative
+111001  idx        (see below)    Register Indexed
+111101  ml  idx    (see below)    Absolute Indexed
+1rrr10             @-r24          Register Indirect with Pre-Decrement
+nnnn11             uimm4          Short Form Immediate (0 to 15)
+
+The amount to increment/decrement by depends on the size of the data being accessed:
+    8-bit  (.B) - 1 (2 if base register is P7/SP)
+    16-bit (.W) - 2
+    24-bit (.P) - 4 (not 3)
+
+All writes to immediate values will fail silently, like on the DCPU-16.
+
+Register Index Word:
+
+0000 0bbb 000r rr00    @r24+r8       8-bit Unsigned Index
+0000 1bbb 000r rr00    @r24+r8SX     8-bit Signed Index
+0100 0www 000r rr00    @r24+r16      16-bit Unsigned Index
+0100 1www 000r rr00    @r24+r16SX    16-bit Signed Index
+1000 0ppp 000r rr00    @r24+r24      24-bit Index
+
+Absolute Index 2nd Word:
+
+0000 0bbb hhhh hhhh    @hml+r8       8-bit Unsigned Index
+0000 1bbb hhhh hhhh    @hml+r8SX     8-bit Signed Index
+0100 0www hhhh hhhh    @hml+r16      16-bit Unsigned Index
+0100 1www hhhh hhhh    @hml+r16SX    16-bit Signed Index
+1000 0ppp hhhh hhhh    @hml+r24      24-bit Index
+
+
+*** INSTRUCTION OPCODES ***
+
+0000 0000 0000 0000               NOP
+0000 0000 0000 0001               HALT
+0000 0001 00ss ssss  src          LD.B    F, rm8.src
+0100 0001 00ss ssss  src          LD.W    WF, rm16.src
+0000 0101 00dd dddd  dst          LD.B    rm8.dst, F
+0100 0101 00dd dddd  dst          LD.W    rm16.dst, WF
+
+zz00 0nnn 01mm mmmm  rmw          ADQ.z   rm.rmw, uimm3+1
+zz00 0000 10mm mmmm  imm* rmw     ADD.z   rm.rmw, imm
+zz00 0001 10mm mmmm  imm* rmw     ADX.z   rm.rmw, imm
+zz00 0010 10mm mmmm  imm* rmw     SUB.z   rm.rmw, imm
+zz00 0011 10mm mmmm  imm* rmw     SBX.z   rm.rmw, imm
+zz00 0100 10mm mmmm  imm* rmw     AND.z   rm.rmw, imm
+zz00 0101 10mm mmmm  imm* rmw     XOR.z   rm.rmw, imm
+zz00 0110 10mm mmmm  imm* rmw     OR.z    rm.rmw, imm
+zz00 0111 10ss ssss  imm* src     CP.z    rm.src, imm
+zz00 0nnn 11mm mmmm  rmw          SBQ.z   rm.rmw, uimm3+1
+* If the operation size is .B or .W, the immediate is 16-bit. If .P, the immediate is 24-bit.
+
+zz00 1000 00ss ssss  src          TST.z   rm.src, L0/W0/P0
+zz00 1rrr 00ss ssss  src          MULU.z  r, rm.src  // r can't be L0, W0, or P0
+zz00 1000 01mm mmmm  rmw          CPL.z   rm.rmw
+zz00 1rrr 01ss ssss  src          MULS.z  r, rm.src  // r can't be L0, W0, or P0
+zz00 1000 10mm mmmm  rmw          NEG.z   rm.rmw
+zz00 1rrr 10ss ssss  src          DIVU.z  r, rm.src  // r can't be L0, W0, or P0
+zz00 1000 11mm mmmm  rmw          NGX.z   rm.rmw
+zz00 1rrr 11ss ssss  src          DIVS.z  r, rm.src  // r can't be L0, W0, or P0
+
+zz01 dddd ddss ssss  src  dst     LD.z    rm.dst, rm.src
+0z01 0rrr 11ss ssss  src          LDZX.z  r24, rm.src  // can't be used with .P
+0z01 1rrr 11ss ssss  src          LDSX.z  r24, rm.src  // can't be used with .P
+1001 0rrr 11ss ssss  src          LEA     r24, rm24.src
+1001 1rrr 11ss ssss  src          LEA     @-r24, rm24.src
+
+zz10 0rrr 00ss ssss  src          ADD.z   r, rm.src
+zz10 0rrr 01ss ssss  src          ADX.z   r, rm.src
+zz10 0rrr 10ss ssss  src          SUB.z   r, rm.src
+zz10 0rrr 11ss ssss  src          SBX.z   r, rm.src
+zz10 1rrr 00ss ssss  src          AND.z   r, rm.src
+zz10 1rrr 01ss ssss  src          XOR.z   r, rm.src
+zz10 1rrr 10ss ssss  src          OR.z    r, rm.src
+zz10 1rrr 11ss ssss  src          CP.z    r, rm.src
+
+zz11 0rrr 00mm mmmm  rmw          ADD.z   rm.rmw, r
+zz11 0rrr 01mm mmmm  rmw          ADX.z   rm.rmw, r
+zz11 0rrr 10mm mmmm  rmw          SUB.z   rm.rmw, r
+zz11 0rrr 11mm mmmm  rmw          SBX.z   rm.rmw, r
+zz11 1rrr 00mm mmmm  rmw          AND.z   rm.rmw, r
+zz11 1rrr 01mm mmmm  rmw          XOR.z   rm.rmw, r
+zz11 1rrr 10mm mmmm  rmw          OR.z    rm.rmw, r
+zz11 1000 11mm mmmm  rmw          RLC.z   rm.rmw
+zz11 1001 11mm mmmm  rmw          RRC.z   rm.rmw
+zz11 1010 11mm mmmm  rmw          RL.z    rm.rmw
+zz11 1011 11mm mmmm  rmw          RR.z    rm.rmw
+zz11 1100 11mm mmmm  rmw          SLA.z   rm.rmw
+zz11 1101 11mm mmmm  rmw          SRA.z   rm.rmw
+zz11 1110 11mm mmmm  rmw          SWAP.z  rm.rmw
+zz11 1111 11mm mmmm  rmw          SRL.z   rm.rmw
+
+1100 0rrr iiii iiii               LDQ     r24, simm8
+1100 1rrr hhhh hhhh  ml           LD.P    r24, hml
+
+1101 0nnn 00ss ssss  src          BIT     imm, rm8.src
+1101 0nnn 01mm mmmm  rmw          CHG     imm, rm8.rmw
+1101 0nnn 10mm mmmm  rmw          RES     imm, rm8.rmw
+1101 0nnn 11mm mmmm  rmw          SET     imm, rm8.rmw
+1101 1000 00ss ssss  src          BIT     M0, rm8.src
+1101 1000 01mm mmmm  rmw          CHG     M0, rm8.rmw
+1101 1000 10mm mmmm  rmw          RES     M0, rm8.rmw
+1101 1000 11mm mmmm  rmw          SET     M0, rm8.rmw
+1101 1011 0000 0nnn               LD      IRL, imm
+1101 1100 nnnn nnnn               AND.B   F, imm
+1101 1101 nnnn nnnn               XOR.B   F, imm
+1101 1110 nnnn nnnn               OR.B    F, imm
+1101 1111 nnnn nnnn               LD.B    F, imm
+
+1110 cccc oooo oooo               JR      cond, offset8*2  // sign-extend offset8 value
+1110 1110 oooo oooo               JR.S    offset8*2  // sign-extend offset8 value
+1110 1111 oooo oooo               CR.S    offset8*2  // sign-extend offset8 value
+
+1111 0rrr 0000 0000               REPR    r24
+1111 0rrr 1ooo oooo               DJNZ    r24, offset7*2  // one-extend offset7 value
+1111 1000 hhhh hhhh  ml (even)    JP      hml
+1111 1000 hhhh hhhh  ml (odd)     CALL    hml-1
+1111 1001 hhhh hhhh  ml (even)    JR.L    offset24
+1111 1001 hhhh hhhh  ml (odd)     CR.L    offset24-1
+1111 1010 00ss ssss  src          JP      rm24.src
+1111 1010 01ss ssss  src          JEA     rm24.src
+1111 1011 00ss ssss  src          CALL    rm24.src
+1111 1011 01ss ssss  src          CEA     rm24.src
+1111 1100 000n nnnn               REPI    uimm5+1
+1111 1111 nnnn nnnn               RST     $FFDnn0
+
+
+*** INSTRUCTION SET REPERTOIRE ***
+
+Data Transfer Instructions:
+LD      Load
+LDQ     Load quick immediate
+LDZX    Load zero-extended
+LDSX    Load sign-extended
+LEA     Load effective address
+SWAP    Exchange units
+
+Arithmetic Instructions:
+ADD     Add
+ADX     Add with extend carry
+ADQ     Add quick immediate
+SUB     Subtract
+SBX     Subtract with extend carry
+SBQ     Subtract quick immediate
+NEG     Negate
+NGX     Negate with extend carry
+MULU    Multiply unsigned
+MULS    Multiply signed
+DIVU    Divide unsigned
+DIVS    Divide signed
+CP      Compare
+
+Logic Instructions:
+AND     Bitwise AND
+OR      Bitwise OR
+XOR     Bitwise exclusive OR
+CPL     Bitwise complement (NOT)
+TST     Bitwise test
+
+Shift Instructions:
+SLA     Shift left arithmetic
+SRA     Shift right arithmetic
+SRL     Shift right logical
+RL      Rotate left with extend carry
+RR      Rotate right with extend carry
+RLC     Rotate left circular
+RRC     Rotate right circular
+
+Bit Instructions:
+BIT     Test bit
+RES     Test and reset bit
+SET     Test and set bit
+CHG     Test and change bit
+
+Control Flow Instructions:
+JR      Jump relative
+JP      Jump
+JEA     Jump to effective address
+CR      Call subroutine relative
+CALL    Call subroutine
+CEA     Call subroutine at effective address
+RST     Restart
+DJNZ    Decrement and jump on non-zero
+
+Miscellaneous Instructions:
+REPI    Repeat (immediate amount)
+REPR    Repeat (register amount)
+HALT    Halt CPU until IRQ or NMI
+NOP     No operation
+
+  Instruction   SZCVDX   Operation
++-------------+--------+---------------------------------------+
+| ADD   B/W/P | ***V!* | rmw += src                            |
++-------------+--------+---------------------------------------+
+ Adds the source operand to the read-modify-write operand.
+ ADD.B supports Decimal Mode. If D is set, the operands and result are treated as 2-digit BCD.
+     S - Set if the sum is negative, cleared if not.
+     Z - Set if the sum is zero, cleared if not.
+     C, X - Both set if the addition operation produced a carry, both cleared if it didn't.
+     VP - Set if the sum exceeded the signed range of the operation size, cleared otherwise.
+          Unpredictable if the operation was a Decimal Mode byte addition.
++-------------+--------+---------------------------------------+
+| ADQ   B/W/P | ***V-- | rmw += imm                            |
++-------------+--------+---------------------------------------+
+ Adds an immediate value in the range of 1 to 8 to the read-modify-write operand.
+     S - Set if the sum is negative, cleared if not.
+     Z - Set if the sum is zero, cleared if not.
+     C - Set if the addition operation produced a carry, cleared if it didn't.
+     VP - Set if the sum exceeded the signed range of the operation size, cleared otherwise.
++-------------+--------+---------------------------------------+
+| ADX   B/W/P | ***V!* | rmw += src + X                        |
++-------------+--------+---------------------------------------+
+ Adds the source operand to the read-modify-write operand with the extend carry input.
+ ADX.B supports Decimal Mode. If D is set, the operands and result are treated as 2-digit BCD.
+     S - Set if the sum is negative, cleared if not.
+     Z - Set if the sum is zero, cleared if not.
+     C, X - Both set if the addition operation produced a carry, both cleared if it didn't.
+     VP - Set if the sum exceeded the signed range of the operation size, cleared otherwise.
+          Unpredictable if the operation was a Decimal Mode byte addition.
++-------------+--------+---------------------------------------+
+| AND   B/W/P | **0P-- | rmw &= src                            |
++-------------+--------+---------------------------------------+
+ Bitwise ANDs the read-modify-write operand with the source operand.
+ If the read-modify-write operand is F, it receives the result directly without interference.
+     S - Set if the result is negative, cleared if not.
+     Z - Set if the result is zero, cleared if not.
+     C - This flag is cleared.
+     VP - Set if the number of set bits in the result is even, cleared if odd.
++-------------+--------+---------------------------------------+
+| BIT         | -*---- | Z = ~src8.bit                         |
++-------------+--------+---------------------------------------+
+ Tests a bit of the source byte operand.
+ Bit 0 is the position $01, while bit 7 is the position $80.
+ If the M0 register is used as the bit number, only its lower 3 bits pertain to it.
+     Z - Set to the logical inverse of the given bit of the source operand.
++-------------+--------+---------------------------------------+
+| CALL        | ------ | @-SP = PGC; PGC = src24               |
++-------------+--------+---------------------------------------+
+ Calls a subroutine with the address given by the source operand.
++-------------+--------+---------------------------------------+
+| CEA         | ------ | @-SP = PGC; PGC = EA of src24         |
++-------------+--------+---------------------------------------+
+ Calls the subroutine at the effective address of the source operand. No address is actually fetched from memory.
+ The post-increment and pre-decrement operations will still take effect, with an amount of 4.
+ If the source operand is a register or an immediate value, the call address will be unpredictable.
++-------------+--------+---------------------------------------+
+| CHG         | -*---- | Z = ~rmw8.bit; rmw8.bit = Z           |
++-------------+--------+---------------------------------------+
+ Tests a bit of the read-modify-write byte operand, then changes that bit to its opposite state (logical inversion).
+ Bit 0 is the position $01, while bit 7 is the position $80.
+ If the M0 register is used as the bit number, only its lower 3 bits pertain to it.
+     Z - Set to the result of the change operation.
++-------------+--------+---------------------------------------+
+| CP    B/W/P | ***V-- | (srcLeft - srcRight)                  |
++-------------+--------+---------------------------------------+
+ Subtracts the right operand from the left operand, and discards the result. The flags, however, will change.
+ This instruction is typically followed by a conditional JR instruction.
+     S - Set if the difference is negative, cleared if not.
+     Z - Set if the difference is zero, cleared if not.
+     C - Set if the subtraction operation produced a borrow, cleared if it didn't.
+     VP - Set if the difference exceeded the signed range of the operation size, cleared otherwise.
++-------------+--------+---------------------------------------+
+| CPL   B/W/P | **0P-- | rmw = ~rmw                            |
++-------------+--------+---------------------------------------+
+ Sets the read-modify-write operand to its complementary state (bitwise NOT).
+     S - Set if the result is negative, cleared if not.
+     Z - Set if the result is zero, cleared if not.
+     C - This flag is cleared.
+     VP - Set if the number of set bits in the result is even, cleared if odd.
++-------------+--------+---------------------------------------+
+| CR      S/L | ------ | @-SP = PGC; PGC += offset             |
++-------------+--------+---------------------------------------+
+ Calls a subroutine using a PGC-relative offset.
+ The offset operand is typically presented as the immediate destination (constant or label) rather than the offset.
++-------------+--------+---------------------------------------+
+| DIVS  B/W/P | **0*-- | r = R0:r / src; R0 = remainder        |
++-------------+--------+---------------------------------------+
+ Performs a division operation. The dividend, divisor, quotient, and remainder are all signed.
+ R0 depends on the operation size: L0 for DIVS.B, W0 for DIVS.W, or P0 for DIVS.P.
+ R0 supplies the upper half of the dividend.
+ If the divisor is zero, the whole DIVS operation will terminate and the Divide By Zero Exception will be raised.
+     S - Set if the quotient stored into the register operand is negative, cleared if not.
+     Z - Set if the quotient stored into the register operand is zero, cleared if not.
+     C - This flag is cleared.
+     VP - Set if the quotient exceeded the signed range of the operation size, cleared otherwise.
++-------------+--------+---------------------------------------+
+| DIVU  B/W/P | **00-- | r = R0:r / src; R0 = remainder        |
++-------------+--------+---------------------------------------+
+ Performs a division operation. The dividend, divisor, quotient, and remainder are all unsigned.
+ R0 depends on the operation size: L0 for DIVU.B, W0 for DIVU.W, or P0 for DIVU.P.
+ R0 supplies the upper half of the dividend.
+ If the divisor is zero, the whole DIVU operation will terminate and the Divide By Zero Exception will be raised.
+     S - Set if the quotient stored into the register operand is negative, cleared if not.
+     Z - Set if the quotient stored into the register operand is zero, cleared if not.
+     C, VP - These flags are both cleared.
++-------------+--------+---------------------------------------+
+| DJNZ        | ------ | r24 -= 1; if r24 != 0 {PGC += offset} |
++-------------+--------+---------------------------------------+
+ Subtracts 1 from the register operand, and jumps backwards if the result of the decrement isn't zero.
+ If the result of the decrement is zero, the jump will not be taken and execution will continue past the DJNZ.
+ The offset is one-extended. Therefore, it is always negative.
+ The offset operand is typically presented as the immediate destination (constant or label) rather than the offset.
++-------------+--------+---------------------------------------+
+| HALT        | ------ | wait until IRQ || NMI                 |
++-------------+--------+---------------------------------------+
+ Suspends CPU operations until a hardware interrupt (IRQ or NMI) occurs.
+ The processor goes in a low-power state during this period.
+ The interrupt will be processed and its handler will run before continuing to the instruction past HALT.
++-------------+--------+---------------------------------------+
+| JEA         | ------ | PGC = EA of src24                     |
++-------------+--------+---------------------------------------+
+ Jumps to the effective address of the source operand. No address is actually fetched from memory.
+ The post-increment and pre-decrement operations will still take effect, with an amount of 4.
+ If the source operand is a register or an immediate value, the jump address will be unpredictable.
++-------------+--------+---------------------------------------+
+| JP          | ------ | PGC = src24                           |
++-------------+--------+---------------------------------------+
+ Jumps to the address given by the source operand.
++-------------+--------+---------------------------------------+
+| JR      S/L | ------ | PGC += offset                         |
++-------------+--------+---------------------------------------+
+ Jumps using a PGC-relative offset.
+ JR.S supports conditional execution. If the condition evaluates to false, the jump will not be taken.
+ The offset operand is typically presented as the immediate destination (constant or label) rather than the offset.
++-------------+--------+---------------------------------------+
+| LD    B/W/P | ------ | dst = src                             |
++-------------+--------+---------------------------------------+
+ Loads the destination operand with a copy of the source operand.
+ This instruction normally doesn't change any of the flags, but will do so if the destination is F or WF.
++-------------+--------+---------------------------------------+
+| LDQ         | ------ | r24 = imm                             |
++-------------+--------+---------------------------------------+
+ Loads the register operand with an immediate value in the range of -128 to +127.
++-------------+--------+---------------------------------------+
+| LDSX    B/W | ------ | r24 = signExtend(src)                 |
++-------------+--------+---------------------------------------+
+ Sign-extends the source byte/word operand to 24 bits, then sets the register operand to this extended value.
++-------------+--------+---------------------------------------+
+| LDZX    B/W | ------ | r24 = zeroExtend(src)                 |
++-------------+--------+---------------------------------------+
+ Zero-extends the source byte/word operand to 24 bits, then sets the register operand to this extended value.
++-------------+--------+---------------------------------------+
+| LEA         | ------ | dst = EA of src24                     |
++-------------+--------+---------------------------------------+
+ Loads the destination operand with the address of the source operand. No value is actually read from memory.
+ The post-increment and pre-decrement operations will still take effect, with an amount of 4.
+ If the source operand is a register or an immediate value, the destination will receive an unpredictable value.
++-------------+--------+---------------------------------------+
+| MULS  B/W/P | **00-- | R0:r = r * src                        |
++-------------+--------+---------------------------------------+
+ Multiplies the register operand by the source operand. This instruction treats the factors as signed.
+ R0 depends on the operation size: L0 for MULS.B, W0 for MULS.W, or P0 for MULS.P.
+ R0 receives the upper half of the product.
+     S - Set if the product stored into the register combination is negative, cleared if not.
+     Z - Set if the product stored into the register combination is zero, cleared if not.
+     C, VP - These flags are both cleared.
++-------------+--------+---------------------------------------+
+| MULU  B/W/P | **00-- | R0:r = r * src                        |
++-------------+--------+---------------------------------------+
+ Multiplies the register operand by the source operand. This instruction treats the factors as unsigned.
+ R0 depends on the operation size: L0 for MULU.B, W0 for MULU.W, or P0 for MULU.P.
+ R0 receives the upper half of the product.
+     S - Set if the product stored into the register combination is negative, cleared if not.
+     Z - Set if the product stored into the register combination is zero, cleared if not.
+     C, VP - These flags are both cleared.
++-------------+--------+---------------------------------------+
+| NEG   B/W/P | ***V!* | rmw = 0 - rmw                         |
++-------------+--------+---------------------------------------+
+ Subtracts the read-modify-write operand from zero, storing the difference back.
+ NEG.B supports Decimal Mode. If D is set, the operand and result are treated as 2-digit BCD.
+     S - Set if the difference is negative, cleared if not.
+     Z - Set if the difference is zero, cleared if not.
+     C, X - Both set if the subtraction operation produced a borrow, both cleared if it didn't.
+     VP - Set if the difference exceeded the signed range of the operation size, cleared otherwise.
+          Unpredictable if the operation was a Decimal Mode byte negation.
++-------------+--------+---------------------------------------+
+| NGX   B/W/P | ***V!* | rmw = 0 - (rmw + X)                   |
++-------------+--------+---------------------------------------+
+ Subtracts the read-modify-write operand from zero with the extend carry input, storing the difference back.
+ NGX.B supports Decimal Mode. If D is set, the operand and result are treated as 2-digit BCD.
+     S - Set if the difference is negative, cleared if not.
+     Z - Set if the difference is zero, cleared if not.
+     C, X - Both set if the subtraction operation produced a borrow, both cleared if it didn't.
+     VP - Set if the difference exceeded the signed range of the operation size, cleared otherwise.
+          Unpredictable if the operation was a Decimal Mode byte negation.
++-------------+--------+---------------------------------------+
+| NOP         | ------ | burnCycles(1)                         |
++-------------+--------+---------------------------------------+
+ Does not perform any operation at all. This is used to insert 1-cycle timing delays in the code.
++-------------+--------+---------------------------------------+
+| OR    B/W/P | **0P-- | rmw |= src                            |
++-------------+--------+---------------------------------------+
+ Bitwise ORs the read-modify-write operand with the source operand.
+ If the read-modify-write operand is F, it receives the result directly without interference.
+     S - Set if the result is negative, cleared if not.
+     Z - Set if the result is zero, cleared if not.
+     C - This flag is cleared.
+     VP - Set if the number of set bits in the result is even, cleared if odd.
++-------------+--------+---------------------------------------+
+| REPI prefix | ------ | for i = 0, i < imm, i++ {(next)}      |
++-------------+--------+---------------------------------------+
+ Executes the next instruction a specified number of times from 1 to 32.
+ The processor won't respond to all external interrupts (IRQ and NMI) until after the last iteration.
++-------------+--------+---------------------------------------+
+| REPR prefix | -*---- | Z = 0; (next); DJNZ r24, next         |
++-------------+--------+---------------------------------------+
+ Executes the next instruction a certain number of times according to the register operand.
+ The register operand is modified between each iteration.
+ If an interrupt or exception occurs between iterations, the return address will be the address of the REPR.
+ If Z is set after an iteration before the next one, the REPR loop will terminate prematurely.
+ The implicit DJNZ operation does not actually affect Z: The instruction being repeated does that.
++-------------+--------+---------------------------------------+
+| RES         | -*---- | Z = ~rmw8.bit; rmw8.bit = 0           |
++-------------+--------+---------------------------------------+
+ Tests a bit of the read-modify-write byte operand, then resets that bit to 0.
+ Bit 0 is the position $01, while bit 7 is the position $80.
+ If the M0 register is used as the bit number, only its lower 3 bits pertain to it.
+     Z - Set to the logical inverse of the given bit of the source operand.
++-------------+--------+---------------------------------------+
+| RL    B/W/P | ****-* | X:rmw <<>= 1                          |
++-------------+--------+---------------------------------------+
+ Rotates the read-modify-write operand left by 1 bit position, combining with the X flag.
+ X essentially supplies the bit to shift into the right side.
+     S - Set if the result is negative, cleared if not.
+     Z - Set if the result is zero, cleared if not.
+     C, X - Both set to copies of the original highest bit which was shifted out.
+     VP - Set if the highest bit of the read-modify-write operand was flipped, cleared if it wasn't.
++-------------+--------+---------------------------------------+
+| RLC   B/W/P | ****-* | rmw <<>= 1                            |
++-------------+--------+---------------------------------------+
+ Rotates the read-modify-write operand left by 1 bit position, circular.
+     S - Set if the result is negative, cleared if not.
+     Z - Set if the result is zero, cleared if not.
+     C, X - Both set to copies of the original highest bit which was shifted out.
+     VP - Set if the highest bit of the read-modify-write operand was flipped, cleared if it wasn't.
++-------------+--------+---------------------------------------+
+| RR    B/W/P | ****-* | X:rmw >><= 1                          |
++-------------+--------+---------------------------------------+
+ Rotates the read-modify-write operand right by 1 bit position, combining with the X flag.
+ X essentially supplies the bit to shift into the left side.
+     S - Set if the result is negative, cleared if not.
+     Z - Set if the result is zero, cleared if not.
+     C, X - Both set to copies of the original lowest bit which was shifted out.
+     VP - Set if the highest bit of the read-modify-write operand was flipped, cleared if it wasn't.
++-------------+--------+---------------------------------------+
+| RRC   B/W/P | ****-* | rmw >><= 1                            |
++-------------+--------+---------------------------------------+
+ Rotates the read-modify-write operand right by 1 bit position, circular.
+     S - Set if the result is negative, cleared if not.
+     Z - Set if the result is zero, cleared if not.
+     C, X - Both set to copies of the original lowest bit which was shifted out.
+     VP - Set if the highest bit of the read-modify-write operand was flipped, cleared if it wasn't.
++-------------+--------+---------------------------------------+
+| RST         | ------ | @-SP = PGC; PGC = $FFD000 + (n * 16)  |
++-------------+--------+---------------------------------------+
+ Calls a subroutine within the RST code area ($FFD000 to $FFDFF0).
+ The operand may be written as the address of the subroutine, or the number from 0 to 255.
++-------------+--------+---------------------------------------+
+| SBQ   B/W/P | ***V-- | rmw -= imm                            |
++-------------+--------+---------------------------------------+
+ Subtracts an immediate value in the range of 1 to 8 from the read-modify-write operand.
+     S - Set if the difference is negative, cleared if not.
+     Z - Set if the difference is zero, cleared if not.
+     C - Set if the subtraction operation produced a borrow, cleared if it didn't.
+     VP - Set if the difference exceeded the signed range of the operation size, cleared otherwise.
++-------------+--------+---------------------------------------+
+| SBX   B/W/P | ***V!* | rmw -= src + X                        |
++-------------+--------+---------------------------------------+
+ Subtracts the source operand from the read-modify-write operand with the extend carry input.
+ SBX.B supports Decimal Mode. If D is set, the operands and result are treated as 2-digit BCD.
+     S - Set if the difference is negative, cleared if not.
+     Z - Set if the difference is zero, cleared if not.
+     C, X - Both set if the subtraction operation produced a borrow, both cleared if it didn't.
+     VP - Set if the difference exceeded the signed range of the operation size, cleared otherwise.
+          Unpredictable if the operation was a Decimal Mode byte subtraction.
++-------------+--------+---------------------------------------+
+| SET         | -*---- | Z = ~rmw8.bit; rmw8.bit = 1           |
++-------------+--------+---------------------------------------+
+ Tests a bit of the read-modify-write byte operand, then sets that bit to 1.
+ Bit 0 is the position $01, while bit 7 is the position $80.
+ If the M0 register is used as the bit number, only its lower 3 bits pertain to it.
+     Z - Set to the logical inverse of the given bit of the source operand.
++-------------+--------+---------------------------------------+
+| SLA   B/W/P | ****-* | rmw <<= 1                             |
++-------------+--------+---------------------------------------+
+ Shifts the read-modify-write operand left by 1 bit position, putting in a zero on the right.
+     S - Set if the result is negative, cleared if not.
+     Z - Set if the result is zero, cleared if not.
+     C, X - Both set to copies of the original highest bit which was shifted out.
+     VP - Set if the highest bit of the read-modify-write operand was flipped, cleared if it wasn't.
++-------------+--------+---------------------------------------+
+| SRA   B/W/P | ***0-* | rmw >>= 1                             |
++-------------+--------+---------------------------------------+
+ Shifts the read-modify-write operand left by 1 bit position, in arithmetic fashion (propagate the highest bit).
+     S - Set if the result is negative, cleared if not.
+     Z - Set if the result is zero, cleared if not.
+     C, X - Both set to copies of the original lowest bit which was shifted out.
+     VP - This flag is always cleared, since the highest bit can never flip.
++-------------+--------+---------------------------------------+
+| SRL   B/W/P | ****-* | rmw >>>= 1                            |
++-------------+--------+---------------------------------------+
+ Shifts the read-modify-write operand left by 1 bit position, in logical fashion (put in a zero on the left).
+     S - Set if the result is negative, cleared if not.
+     Z - Set if the result is zero, cleared if not.
+     C, X - Both set to copies of the original lowest bit which was shifted out.
+     VP - Set if the highest bit of the read-modify-write operand was flipped, cleared if it wasn't.
++-------------+--------+---------------------------------------+
+| SUB   B/W/P | ***V!* | rmw -= src                            |
++-------------+--------+---------------------------------------+
+ Subtracts the source operand from the read-modify-write operand.
+ SUB.B supports Decimal Mode. If D is set, the operands and result are treated as 2-digit BCD.
+     S - Set if the difference is negative, cleared if not.
+     Z - Set if the difference is zero, cleared if not.
+     C, X - Both set if the subtraction operation produced a borrow, both cleared if it didn't.
+     VP - Set if the difference exceeded the signed range of the operation size, cleared otherwise.
+          Unpredictable if the operation was a Decimal Mode byte subtraction.
++-------------+--------+---------------------------------------+
+| SWAP.B      | ------ | rmw8 <<>= 4                           |
++-------------+--------+---------------------------------------+
+ Exchanges the 4-bit nibbles in the read-modify-write byte operand.
++-------------+--------+---------------------------------------+
+| SWAP.W      | ------ | rmw16 <<>= 8                          |
++-------------+--------+---------------------------------------+
+ Exchanges the 8-bit bytes in the read-modify-write word operand.
++-------------+--------+---------------------------------------+
+| SWAP.P      | ------ | rmw24[23:16] <=> rmw24[7:0]           |
++-------------+--------+---------------------------------------+
+ Exchanges the high and low bytes in the read-modify-write pointer operand, keeping the middle byte unchanged.
++-------------+--------+---------------------------------------+
+| TST   B/W/P | **0P-- | (src & R0)                            |
++-------------+--------+---------------------------------------+
+ Performs a bitwise AND of the source operand and R0, and discards the result. The flags, however, will change.
+ R0 depends on the operation size: L0 for TST.B, W0 for TST.W, or P0 for TST.P.
+     S - Set if the result is negative, cleared if not.
+     Z - Set if the result is zero, cleared if not.
+     C - This flag is cleared.
+     VP - Set if the number of set bits in the result is even, cleared if odd.
++-------------+--------+---------------------------------------+
+| XOR   B/W/P | **0P-- | rmw ^^= src                           |
++-------------+--------+---------------------------------------+
+ Bitwise exclusive ORs the read-modify-write operand with the source operand.
+ If the read-modify-write operand is F, it receives the result directly without interference.
+     S - Set if the result is negative, cleared if not.
+     Z - Set if the result is zero, cleared if not.
+     C - This flag is cleared.
+     VP - Set if the number of set bits in the result is even, cleared if odd.
+
+Macro Instructions:
+PUSH    Push to stack
+PEA     Push effective address
+POP     Pop from stack
+RXF     Reset X flag
+SXF     Set X flag
+CXF     Change X flag
+RET     Return from subroutine
+RETI    Return from interrupt handler
+
++-------------+
+| PUSH  B/W/P |
++-------------+
+ Pushes a copy of the source operand's value onto the stack.
+ ASM:
+     LD.z    @-SP, src
++-------------+
+| PEA         |
++-------------+
+ Pushes the effective address of the source operand onto the stack. No value is actually read from memory.
+ ASM:
+     LEA     @-SP, src
++-------------+
+| POP   B/W/P |
++-------------+
+ Pops a value off of the stack and stores it into the destination operand.
+ ASM:
+     LD.z    dst, @SP+
++-------------+
+| RXF         |
++-------------+
+ Resets the X flag to 0.
+ ASM:
+     AND.B   F, $FE
++-------------+
+| SXF         |
++-------------+
+ Sets the X flag to 1.
+ ASM:
+     OR.B    F, $01
++-------------+
+| CXF         |
++-------------+
+ Changes the X flag to its opposite state (logical inversion).
+ ASM:
+     XOR.B   F, $01
++-------------+
+| RET         |
++-------------+
+ Returns from a subroutine.
+ ASM:
+     JP      @SP+
++-------------+
+| RETI        |
++-------------+
+ Returns from an interrupt handler.
+ ASM:
+     LD.W    WF, @SP+
+     JP      @SP+
+
+
+*** INTERRUPTS AND EXCEPTIONS ***
+
+Vector     Purpose
+$FFCF00    NMI
+$FFCF10    IRQ1
+$FFCF20    IRQ2
+$FFCF30    IRQ3
+$FFCF40    IRQ4
+$FFCF50    IRQ5
+$FFCF60    IRQ6
+$FFCF70    IRQ7
+...        <reserved>
+$FFCFD0    Divide By Zero Exception
+$FFCFE0    Illegal Instruction Exception
+$FFCFF0    Reset
+
+Interrupt/Exception Routine:
+
+    if isIRQ && IRQlevel > IRL {break};
+    @-SP = returnAddress;  // 24-bit, typically PGC value
+    @-SP = WF;             // 16-bit
+    if isNMI {IRL = 0};
+    if isIRQ {IRL = IRQlevel - 1};
+    PGC = vectorAddress
+
+If multiple interrupts/exceptions occur simultaneously, the vectors higher above in this list will run first:
+
+1.  Reset
+2.  NMI
+3.  IRQ1
+4.  IRQ2
+5.  IRQ3
+6.  IRQ4
+7.  IRQ5
+8.  IRQ6
+9.  IRQ7
+10. Divide By Zero Exception*
+11. Illegal Instruction Exception*
+* These two are mutually-exclusive.
+
+
+*** PROCESSOR DESIGN NOTES ***
+
+- All instruction words and multi-byte values in memory are little-endian: the lowest byte is at the base address.
+- 16-bit and 24-bit memory accesses must be word-aligned. Odd addresses are converted into their next lower even.
+- The stack uses the "full-descending" convention: SP decreases before storing, and increases after loading.
+- The return address pushed onto the stack is the address of the instruction following the call instruction.
+- PGC-relative offsets are relative to the address of the next instruction.
+- PGC-relative offsets in JR.S, CR.S, and DJNZ actually get multiplied by 2 before being added to PGC.
+    As such, the offset should be divided by 2 before storing it in the instruction's bits.
+
+All 24-bit memory accesses consist of a 16-bit access followed by an 8-bit access.
+When fetching 24-bit immediate values, 2 16-bit words are fetched in little-endian order to get a 32-bit value.
+The upper 8 bits of the 32-bit value are ignored.
