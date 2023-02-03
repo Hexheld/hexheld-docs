@@ -500,17 +500,17 @@ NOP     No operation
      C - This flag is cleared.
      VP - Set if the number of set bits in the result is even, cleared if odd.
 +-------------+--------+---------------------------------------+
-| REPI prefix | ------ | for i = 0, i < imm, i++ {(next)}      |
+| REPI prefix | ------ | for i = 0; i < imm; i++ {(next)}      |
 +-------------+--------+---------------------------------------+
  Executes the next instruction a specified number of times from 1 to 32.
  The processor won't respond to all external interrupts (IRQ and NMI) until after the last iteration.
 +-------------+--------+---------------------------------------+
-| REPR prefix | -*---- | Z = 0; (next); DJNZ r24, next         |
+| REPR prefix | -*---- | Z = 0; iter: (next); DJNZ r24, iter   |
 +-------------+--------+---------------------------------------+
  Executes the next instruction a certain number of times according to the register operand.
- The register operand is modified between each iteration.
- If an interrupt or exception occurs between iterations, the return address will be the address of the REPR.
- If Z is set after an iteration before the next one, the REPR loop will terminate prematurely.
+ The register operand is modified after each iteration.
+ If an interrupt or exception occurs before an iteration, the return address will be the address of the REPR.
+ If Z is set after an iteration, the REPR loop will terminate prematurely.
  The implicit DJNZ operation does not actually affect Z: The instruction being repeated does that.
 +-------------+--------+---------------------------------------+
 | RES         | -*---- | Z = ~rmw8.bit; rmw8.bit = 0           |
@@ -655,6 +655,8 @@ POP     Pop from stack
 RXF     Reset X flag
 SXF     Set X flag
 CXF     Change X flag
+DDM     Disable Decimal Mode
+EDM     Enable Decimal Mode
 RET     Return from subroutine
 RETI    Return from interrupt handler
 
@@ -694,6 +696,18 @@ RETI    Return from interrupt handler
  Changes the X flag to its opposite state (logical inversion).
  ASM:
      XOR.B   F, $01
++-------------+
+| DDM         |
++-------------+
+ Turns off Decimal Mode, causing the byte-sized arithmetic instructions to deal with binary values again.
+ ASM:
+     AND.B   F, $FD
++-------------+
+| EDM         |
++-------------+
+ Turns on Decimal Mode for the byte-sized arithmetic instructions.
+ ASM:
+     OR.B    F, $02
 +-------------+
 | RET         |
 +-------------+
