@@ -31,9 +31,9 @@ This CPU contains a 24-bit ALU, allowing it to process pointer arithmetic in 1 c
 P0 and P7 are used implicitly by some CPU operations.
 
 WF Format:
-+-+-+-+-+-+-----+-+-+-+-+-+-+-+-+
++-+-+-+-+-+-=-=-+-+-+-+-+-+-+-+-+
 |0|0|0|0|0| IRL |S|Z|0|0|C|V|D|X|
-+-+-+-+-+-+-----+-+-+-+-+-+-+-+-+
++-+-+-+-+-+-=-=-+-+-+-+-+-+-+-+-+
              |   | |     | | | |
              |   | |     | | | +-----  X    Extend Carry
              |   | |     | | +-------  D    Decimal Mode (0: Off, 1: On)
@@ -142,16 +142,15 @@ Absolute Index 2nd Word:
 0100 0101 00dd dddd  dst          LD.W    rm16.dst, WF
 
 zz00 0nnn 01mm mmmm  rmw          ADQ.z   rm.rmw, uimm3+1
-zz00 0000 10mm mmmm  imm* rmw     ADD.z   rm.rmw, imm
-zz00 0001 10mm mmmm  imm* rmw     ADX.z   rm.rmw, imm
-zz00 0010 10mm mmmm  imm* rmw     SUB.z   rm.rmw, imm
-zz00 0011 10mm mmmm  imm* rmw     SBX.z   rm.rmw, imm
-zz00 0100 10mm mmmm  imm* rmw     AND.z   rm.rmw, imm
-zz00 0101 10mm mmmm  imm* rmw     XOR.z   rm.rmw, imm
-zz00 0110 10mm mmmm  imm* rmw     OR.z    rm.rmw, imm
-zz00 0111 10ss ssss  imm* src     CP.z    rm.src, imm
+zz00 0000 10mm mmmm  rmw          RLC.z   rm.rmw
+zz00 0001 10mm mmmm  rmw          RRC.z   rm.rmw
+zz00 0010 10mm mmmm  rmw          RL.z    rm.rmw
+zz00 0011 10mm mmmm  rmw          RR.z    rm.rmw
+zz00 0100 10mm mmmm  rmw          SLA.z   rm.rmw
+zz00 0101 10mm mmmm  rmw          SRA.z   rm.rmw
+zz00 0110 10mm mmmm  rmw          SWAP.z  rm.rmw
+zz00 0111 10mm mmmm  rmw          SRL.z   rm.rmw
 zz00 0nnn 11mm mmmm  rmw          SBQ.z   rm.rmw, uimm3+1
-* If the operation size is .B or .W, the immediate is 16-bit. If .P, the immediate is 24-bit.
 
 zz00 1000 00ss ssss  src          TST.z   rm.src, L0/W0/P0
 zz00 1rrr 00ss ssss  src          MULU.z  r, rm.src  // r can't be L0, W0, or P0
@@ -184,17 +183,18 @@ zz11 0rrr 11mm mmmm  rmw          SBX.z   rm.rmw, r
 zz11 1rrr 00mm mmmm  rmw          AND.z   rm.rmw, r
 zz11 1rrr 01mm mmmm  rmw          XOR.z   rm.rmw, r
 zz11 1rrr 10mm mmmm  rmw          OR.z    rm.rmw, r
-zz11 1000 11mm mmmm  rmw          RLC.z   rm.rmw
-zz11 1001 11mm mmmm  rmw          RRC.z   rm.rmw
-zz11 1010 11mm mmmm  rmw          RL.z    rm.rmw
-zz11 1011 11mm mmmm  rmw          RR.z    rm.rmw
-zz11 1100 11mm mmmm  rmw          SLA.z   rm.rmw
-zz11 1101 11mm mmmm  rmw          SRA.z   rm.rmw
-zz11 1110 11mm mmmm  rmw          SWAP.z  rm.rmw
-zz11 1111 11mm mmmm  rmw          SRL.z   rm.rmw
+zz11 1000 11mm mmmm  imm* rmw     ADD.z   rm.rmw, imm
+zz11 1001 11mm mmmm  imm* rmw     ADX.z   rm.rmw, imm
+zz11 1010 11mm mmmm  imm* rmw     SUB.z   rm.rmw, imm
+zz11 1011 11mm mmmm  imm* rmw     SBX.z   rm.rmw, imm
+zz11 1100 11mm mmmm  imm* rmw     AND.z   rm.rmw, imm
+zz11 1101 11mm mmmm  imm* rmw     XOR.z   rm.rmw, imm
+zz11 1110 11mm mmmm  imm* rmw     OR.z    rm.rmw, imm
+zz11 1111 11ss ssss  imm* src     CP.z    rm.src, imm
+* If the operation size is .B or .W, the immediate is 16-bit. If .P, the immediate is 24-bit.
 
-1100 0rrr iiii iiii               LDQ     r24, simm8
-1100 1rrr hhhh hhhh  ml           LD.P    r24, hml
+1100 0rrr hhhh hhhh  ml           LD.P    r24, hml
+1100 1rrr iiii iiii               LDQ     r24, simm8
 
 1101 0nnn 00ss ssss  src          BIT     imm, rm8.src
 1101 0nnn 01mm mmmm  rmw          CHG     imm, rm8.rmw
@@ -217,8 +217,8 @@ zz11 1111 11mm mmmm  rmw          SRL.z   rm.rmw
 1111 0rrr 0000 0000               REPR    r24
 1111 0rrr 1ooo oooo               DJNZ    r24, offset7*2  // one-extend offset7 value
 1111 1000 hhhh hhhh  ml (even)    JP      hml
-1111 1000 hhhh hhhh  ml (odd)     CALL    hml-1
-1111 1001 hhhh hhhh  ml (even)    JR.L    offset24
+1111 1000 hhhh hhhh  ml (odd)     JR.L    offset24-1
+1111 1001 hhhh hhhh  ml (even)    CALL    hml
 1111 1001 hhhh hhhh  ml (odd)     CR.L    offset24-1
 1111 1010 00ss ssss  src          JP      rm24.src
 1111 1010 01ss ssss  src          JEA     rm24.src
