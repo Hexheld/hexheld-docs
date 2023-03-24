@@ -113,7 +113,7 @@ The amount to increment/decrement by depends on the size of the data being acces
     16-bit (.W) - 2
     24-bit (.P) - 4 (not 3)
 
-All writes to immediate values will fail silently, like on the DCPU-16.
+All writes to immediate values will fail silently.
 
 Register Index Word:
 
@@ -136,6 +136,7 @@ Absolute Index 2nd Word:
 
 0000 0000 0000 0000               NOP
 0000 0000 0000 0001               HALT
+0000 0000 0000 0010               ILG  // mandatory illegal opcode
 0000 0001 00ss ssss  src          LD.B    F, rm8.src
 0100 0001 00ss ssss  src          LD.W    WF, rm16.src
 0000 0101 00dd dddd  dst          LD.B    rm8.dst, F
@@ -151,7 +152,6 @@ zz00 0101 10mm mmmm  rmw          SRA.z   rm.rmw
 zz00 0110 10mm mmmm  rmw          SWAP.z  rm.rmw
 zz00 0111 10mm mmmm  rmw          SRL.z   rm.rmw
 zz00 0nnn 11mm mmmm  rmw          SBQ.z   rm.rmw, uimm3+1
-
 zz00 1000 00ss ssss  src          TST.z   rm.src, L0/W0/P0
 zz00 1rrr 00ss ssss  src          MULU.z  r, rm.src  // r can't be L0, W0, or P0
 zz00 1000 01mm mmmm  rmw          CPL.z   rm.rmw
@@ -224,7 +224,7 @@ zz11 1111 11ss ssss  imm* src     CP.z    rm.src, imm
 1111 1010 01ss ssss  src          JEA     rm24.src
 1111 1011 00ss ssss  src          CALL    rm24.src
 1111 1011 01ss ssss  src          CEA     rm24.src
-1111 1100 000n nnnn               REPI    uimm5+1
+1111 1110 000n nnnn               REPI    uimm5+1
 1111 1111 nnnn nnnn               RST     $FFDnn0
 
 
@@ -290,6 +290,7 @@ REPI    Repeat (immediate amount)
 REPR    Repeat (register amount)
 HALT    Halt CPU until IRQ or NMI
 NOP     No operation
+ILG     Raise Illegal Instruction Exception
 
   Instruction   SZCVDX   Operation
 +-------------+--------+---------------------------------------+
@@ -374,7 +375,7 @@ NOP     No operation
 | CR      S/L | ------ | @-SP = PGC; PGC += offset             |
 +-------------+--------+---------------------------------------+
  Calls a subroutine using a PGC-relative offset.
- The offset operand is typically presented as the immediate destination (constant or label) rather than the offset.
+ The offset operand is typically presented as the immediate destination or a text label, rather than the offset.
 +-------------+--------+---------------------------------------+
 | DIVS  B/W/P | **0*-- | r = R0:r / src; R0 = remainder        |
 +-------------+--------+---------------------------------------+
@@ -402,13 +403,18 @@ NOP     No operation
  Subtracts 1 from the register operand, and jumps backwards if the result of the decrement isn't zero.
  If the result of the decrement is zero, the jump will not be taken and execution will continue past the DJNZ.
  The offset is one-extended. Therefore, it is always negative.
- The offset operand is typically presented as the immediate destination (constant or label) rather than the offset.
+ The offset operand is typically presented as the immediate destination or a text label, rather than the offset.
 +-------------+--------+---------------------------------------+
 | HALT        | ------ | wait until IRQ || NMI                 |
 +-------------+--------+---------------------------------------+
- Suspends CPU operations until a hardware interrupt (IRQ or NMI) occurs.
+ Suspends CPU operations until an external interrupt (IRQ or NMI) occurs.
  The processor goes in a low-power state during this period.
  The interrupt will be processed and its handler will run before continuing to the instruction past HALT.
++-------------+--------+---------------------------------------+
+| ILG         | ------ | Illegal Instruction                   |
++-------------+--------+---------------------------------------+
+ Raises the Illegal Instruction Exception explicitly.
+ DO NOT use this instruction to call a general-purpose software interrupt.
 +-------------+--------+---------------------------------------+
 | JEA         | ------ | PGC = EA of src24                     |
 +-------------+--------+---------------------------------------+
@@ -424,7 +430,7 @@ NOP     No operation
 +-------------+--------+---------------------------------------+
  Jumps using a PGC-relative offset.
  JR.S supports conditional execution. If the condition evaluates to false, the jump will not be taken.
- The offset operand is typically presented as the immediate destination (constant or label) rather than the offset.
+ The offset operand is typically presented as the immediate destination or a text label, rather than the offset.
 +-------------+--------+---------------------------------------+
 | LD    B/W/P | ------ | dst = src                             |
 +-------------+--------+---------------------------------------+
@@ -487,7 +493,7 @@ NOP     No operation
      VP - Set if the difference exceeded the signed range of the operation size, cleared otherwise.
           Unpredictable if the operation was a Decimal Mode byte negation.
 +-------------+--------+---------------------------------------+
-| NOP         | ------ | burnCycles(1)                         |
+| NOP         | ------ | burnExecuteCycles(1)                  |
 +-------------+--------+---------------------------------------+
  Does not perform any operation at all. This is used to insert 1-cycle timing delays in the code.
 +-------------+--------+---------------------------------------+
@@ -557,7 +563,8 @@ NOP     No operation
 | RST         | ------ | @-SP = PGC; PGC = $FFD000 + (n * 16)  |
 +-------------+--------+---------------------------------------+
  Calls a subroutine within the RST code area ($FFD000 to $FFDFF0).
- The operand may be written as the address of the subroutine, or the number from 0 to 255.
+ The operand may be written as the immediate address of the subroutine, or the number from 0 to 255.
+ This instruction is intended to be a space-saving way to call several short routines.
 +-------------+--------+---------------------------------------+
 | SBQ   B/W/P | ***V-- | rmw -= imm                            |
 +-------------+--------+---------------------------------------+
@@ -734,10 +741,19 @@ $FFCF40    IRQ4
 $FFCF50    IRQ5
 $FFCF60    IRQ6
 $FFCF70    IRQ7
-...        <reserved>
+$FFCF80    <reserved>
+$FFCF90    <reserved>
+$FFCFA0    <reserved>
+$FFCFB0    <reserved>
+$FFCFC0    <reserved>
 $FFCFD0    Divide By Zero Exception
 $FFCFE0    Illegal Instruction Exception
 $FFCFF0    Reset
+
+The NMI and IRQ vectors correspond to interrupts generated by external components.
+Their purposes are configured externally from the CPU core.
+
+The Illegal Instruction Exception is raised whenever the CPU encounters a non-existent or malformed instruction.
 
 Interrupt/Exception Routine:
 
@@ -768,6 +784,7 @@ If multiple interrupts/exceptions occur simultaneously, the vectors higher above
 
 - All instruction words and multi-byte values in memory are little-endian: the lowest byte is at the base address.
 - 16-bit and 24-bit memory accesses must be word-aligned. Odd addresses are converted into their next lower even.
+    As such, it is recommended to add 1 byte of padding to each 24-bit pointer in memory.
 - The stack uses the "full-descending" convention: SP decreases before storing, and increases after loading.
 - The return address pushed onto the stack is the address of the instruction following the call instruction.
 - PGC-relative offsets are relative to the address of the next instruction.
