@@ -1,0 +1,40 @@
+
+HiveCraft Memory Map:
+
+$000000 - $007FFF   32 KB    WRAM
+$008000 - $00FFFF   32 KB    VRAM
+$010000 - $0FFFFF   ~1 MB    Hexridge CS1 (first 64 KB inaccessible)
+$100000 - $1FFFFF    1 MB    Hexridge CS2
+$200000 - $FF9FFF  ~14 MB    Hexridge ROM
+$FFA000 - $FFDFFF   16 KB    Boot ROM ->(unmap)-> Hexridge ROM
+$FFE000 - $FFEFFF    4 KB    Tilemap RAM
+$FFF000 - $FFF27F   640 B    Sprite Attribute RAM
+$FFF280 - $FFF3FF            I/O Registers
+$FFF400 - $FFFFFF    3 KB    HRAM
+
+Hexridge ROM Organization:
+
+$..0000 - $FF9EFF    General Purpose
+$FF9F00 - $FF9FFF    ROM Header
+$FFA000 - $FFCEFF    General Purpose
+$FFCF00 - $FFCFFF    Interrupt and Exception Vectors
+                   $FFCFF0 == Entry Point == Reset Vector
+$FFD000 - $FFDFFF    RST Code Area
+$FFE000 - $FFFFFF    <inaccessible>
+
+ROM Header:
+
++$00 - +$7F      Game title     (ASCII, null-terminated, 127 characters maximum)
++$80 - +$DF      Game developer (ASCII, null-terminated, 95 characters maximum)
++$E0 - +$EF    * Magic "HEXHELD SOFTWARE" (ASCII)
++$F0             ROM size in 64 KB units (e.g. $10 for a 1 MB ROM)
++$F1             CS1 chip type
++$F2             CS2 chip type
++$F3           * Minimum SoC version number
++$F4 - +$F7      <$00 filling>
++$F8 - +$F9      Software revision number (16-bit, starts at 1)
++$FA - +$FB      Copyright inclusive start year (4-digit BCD)
++$FC - +$FD      Copyright inclusive end year   (4-digit BCD)
++$FE - +$FF    * CRC-16 (polynomial $D175) of above 254 bytes (+$00 - +$FD)
+
+* These fields are validated by the boot ROM program.
