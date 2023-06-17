@@ -1,0 +1,546 @@
+
+# Memory Map
+
+$000000 - $007FFF   32 KB  8-bit     WRAM
+$008000 - $00FFFF   32 KB  8-bit     VRAM
+
+$010000 - $0FFFFF   ~1 MB  8-bit     Hexridge CS1 (first 64 KB inaccessible)
+$100000 - $1FFFFF    1 MB  8-bit     Hexridge CS2
+$200000 - $FF9FFF  ~14 MB  8-bit     Hexridge ROM
+$FFA000 - $FFDFFF   16 KB  8-bit     Boot ROM ->(unmap)-> Hexridge ROM
+
+$FFE000 - $FFEFFF    4 KB  ?-bit     Tilemap RAM
+$FFF000 - $FFF27F   640 B  ?-bit     Sprite Attribute RAM
+$FFF280 - $FFF2FF   128 B            <reserved>
+$FFF300 - $FFF3FF   256 B  ?-bit     I/O Registers
+$FFF400 - $FFFFFF    3 KB  16-bit    HRAM
+
+
+# I/O Register Map
+
+$00 - $0F    Timers A, B
+$10 - $1F    DMA 1
+$20 - $2F    DMA 2
+$30 - $3F    Miscellaneous
+$40 - $4F    ADC
+$50 - $5F    Serial
+$60 - $6F    Settings RAM + Key
+$70 - $7F    Interrupt Controller
+
+$80 - $8F    LCD Control Registers
+$90 - $97    7-Segment LCD Data
+$98 - $9F    LCD Module Miscellaneous (?)
+$A0 - $A7    High-Priority OBJ Palette Map
+$A8 - $AF    High-Priority BG Palette Map
+$B0 - $B7    Low-Priority OBJ Palette Map
+$B8 - $BF    Low-Priority BG Palette Map
+
+$C0 - $DF    PowerNoise Core #1
+$E0 - $FF    PowerNoise Core #2
+
+Do not attempt to access a reserved register.
+
+
+## Timers A, B
+
+$00    TA_CTL  .B    Timer A Control
+$01    TB_CTL  .B    Timer B Control
++-+-+-+-=-=-=-=-+
+|E|-|O|   CLK   |
++-+-+-+-=-=-=-=-+
+ |   |     |
+ |   |     +---------  CLK (R/W)  Timer Clock Source
+ |   +---------------  ONE (R/W)  One-Shot Mode Enable
+ +-------------------  EN  (R/W)  Timer Enable
+Clock Sources:
+  0 - 15     SYSDIV
+  16         SUB
+  17         EXT
+  18         Timer A Reload (Timer B only, <reserved> on Timer A)
+  19 - 31    <reserved>
+
+$02    TA_C  .W    Timer A Content (R/W)
+$04    TB_C  .W    Timer B Content (R/W)
+The current 16-bit contents of the timers.
+
+$06    TA_R  .W    Timer A Reload Value (R/W)
+$08    TB_R  .W    Timer B Reload Value (R/W)
+The 16-bit reload values for the timers.
+
+
+## DMA 1
+## DMA 2
+
+$10    D1_CTL  .W    DMA 1 Control
+$20    D2_CTL  .W    DMA 2 Control
++-+-+-+-+-+-=-=-+-+-+-+-+-=-+-=-+
+|E|-|-|O|W| ST  |-|-|-|-|DM |SM |
++-+-+-+-+-+-=-=-+-+-+-+-+-=-+-=-+
+ |     | |   |            |   |
+ |     | |   |            |   +------  SM  (R/W)  SA Pointer Auto-Index Mode
+ |     | |   |            +----------  DM  (R/W)  DA Pointer Auto-Index Mode
+ |     | |   +-----------------------  ST  (R/W)  Single-Step Transfer Source
+ |     | +---------------------------  W   (R/W)  Word Size Selection
+ |     +-----------------------------  ONE (R/W)  One-Shot Mode Enable
+ +-----------------------------------  EN  (R/W)  DMA Enable
+Auto-Index Modes:
+  0    @pointer+    Post-Increment
+  1    @pointer-    Post-Decrement
+  2    @pointer     No Modification
+  3                 <reserved>
+Single-Step Sources:
+  0    Instant Transfer
+  1    HBLANK
+  2    Timer A Reload
+  3    Timer B Reload
+  4    Link Serial New Byte Received
+  5    Link Serial Byte Transfer Done
+  6    EXT (Rising Edge)
+  7    EXT (Falling Edge)
+Size:
+  0    Byte (.B)
+  1    Word (.W)
+
+$12    D1_C  .W    DMA 1 Timer Content (R/W)
+$22    D2_C  .W    DMA 2 Timer Content (R/W)
+The current 16-bit contents of the DMA timers. These timers control the sizes of the DMA transfers.
+
+$14    D1_SA  .P    DMA 1 Source Address (R/W)
+$24    D2_SA  .P    DMA 2 Source Address (R/W)
+The current 24-bit contents of the DMA source address working pointers.
+
+$18    D1_DA  .P    DMA 1 Destination Address (R/W)
+$28    D2_DA  .P    DMA 2 Destination Address (R/W)
+The current 24-bit contents of the DMA destination address working pointers.
+
+$2F    D2_PRI  .B    DMA 2 Priority Control
++-+-+-+-+-+-+-+-+
+|-|-|-|-|-|-|-|P|
++-+-+-+-+-+-+-+-+
+               |
+               +-----  PRI (R/W)  Priority Setting
+Settings:
+  0    DMA 1 > DMA 2 > CPU
+  1    DMA 2 > DMA 1 > CPU
+
+
+## Miscellaneous
+
+$30    BUS_CTL  .W    Bus Control
++-+-+-+-+-+-=-=-+-+-=-=-+-+-=-=-+
+|-|-|-|-|-| CS2 |-| CS1 |-| ROM |
++-+-+-+-+-+-=-=-+-+-=-=-+-+-=-=-+
+             |       |       |
+             |       |       +-------  ROM (R/W)  ROM Access Wait Count
+             |       +---------------  CS1 (R/W)  CS1 Access Wait Count
+             +-----------------------  CS2 (R/W)  CS2 Access Wait Count
+
+$32    IR_CTL  .B    Infrared Control
++-+-+-+-+-+-+-+-+
+|I|-|-|-|-|-|S|O|
++-+-+-+-+-+-+-+-+
+ |           | |
+ |           | +-----  OUT (R/W)  Infrared Transmitter Light Disable
+ |           +-------  SRD (R/W)  Infrared Receiver Signal Read Enable
+ +-------------------  IN  (R)    Signal from Infrared Receiver
+
+$3C    CDIV  .W    Clock Divider Bits (R)
+The 16-bit contents of the divider/ripple counter.
+
+$3E    OSC_CTL  .B    Oscillator/Clock Control
++-+-+-+-+-+-+-=-+
+|P|-|-|-|-|E|SPD|
++-+-+-+-+-+-+-=-+
+ |         |  |
+ |         |  +------  SPD  (R/W)  CPU/DMA Clock Speed
+ |         +---------  EN   (R/W)  Enable 16 MHz Oscillator
+ +-------------------  PEND (R)    SPD/EN Changes Pending
+Speeds:
+  0    8 MHz (DIV1)
+  1    4 MHz (DIV2)
+  2    2 MHz (DIV4)
+  3    32768 Hz (SUB)
+
+$3F    HCVER  .B    HiveCraft SoC Version Number (R)
+
+
+## ADC
+
+$40    AD_CTL  .B    ADC Control
++-+-+-+-+-+-+-=-+
+|-|-|-|-|S|-|CH |
++-+-+-+-+-+-+-=-+
+         |    |
+         |    +------  CH    (R/W)  ADC Channel Select
+         +-----------  BUSY  (R)    ADC Busy
+         +-----------  START (W)    ADC Sample Start
+Channels:
+  0    Battery Power Level
+  1    Controller 1 Paddle
+  2    Controller 2 Paddle
+  3    Controller 3 Paddle
+
+$48    AD_R0  .W    ADC Channel 0 Result (R)
+$4A    AD_R1  .W    ADC Channel 1 Result (R)
+$4C    AD_R2  .W    ADC Channel 2 Result (R)
+$4E    AD_R3  .W    ADC Channel 3 Result (R)
+The 16-bit results of the last ADC conversions in each channel.
+
+
+## Serial
+
+$50    SER_CTL  .B    Link Serial Control
+$51    CON_CTL  .B    Controller Serial Control
++-+-+-+-+-+-+-=-+
+|B|N|-|-|-|-|CLK|
++-+-+-+-+-+-+-=-+
+ | |          |
+ | |          +------  CLK  (R/W)  Serial Transfer Clock Toggle Source
+ | +-----------------  NEWR (R)    New Byte Received Flag
+ +-------------------  BUSY (R)    Serial Transfer Busy (SER_CTL only, always clear in CON_CTL)
+Clock Sources:
+  0    2 MHz (DIV4)       1 MHz
+  1    500 KHz (DIV16)    250 KHz
+  2    32768 Hz (SUB)     16384 Hz
+  3    Timer B Reload     TBfreq / 2
+
+$52    SER_R  .B    Link Serial Receive Data (R)
+The 8-bit link serial data received. Clears NEWR in SER_CTL when accessed.
+
+$53    SER_T  .B    Link Serial Transfer Out Data (R/W)
+The 8-bit link serial data to transfer out. Transfer starts immediately when written.
+
+$54    CON_R1  .B    Controller 1 Serial Receive Data (R)
+$55    CON_R2  .B    Controller 2 Serial Receive Data (R)
+$56    CON_R3  .B    Controller 3 Serial Receive Data (R)
+The 8-bit controller serial data received. Clears NEWR in CON_CTL when CON_R3 is accessed.
+
+
+## Settings RAM + Key
+
+$60    SETRAM+0  .B
+$61    SETRAM+1  .B
+$62    SETRAM+2  .B
+$63    SETRAM+3  .B
+$64    SETRAM+4  .B
+$65    SETRAM+5  .B
+$66    SETRAM+6  .B
+$67    SETRAM+7  .B
+Settings RAM is normally (R), but when unlocked with the key, it all becomes (R/W).
+
+$68    SETKEY  .W    Settings RAM Key (R/W)
+
+
+## Interrupt Controller
+
+All registers here follow this format:
++-=-=-=-+-+-=-=-+
+|special|E| LVL |
++-=-=-=-+-+-=-=-+
+    |    |   |
+    |    |   +-------  LVL (R/W)  Interrupt Source IRQ Level Assignment
+    |    +-----------  EN  (R/W)  Interrupt Source Enable
+    +----------------  These bits have special significance for some interrupt sources.
+
+$70    INT_VBL  .B    Vertical Blank
+
+$71    INT_HBL  .B    Horizontal Blank
++-+-+-+-+-+-=-=-+
+|-|-|-|M|E| LVL |
++-+-+-+-+-+-=-=-+
+       |
+       +-------------  MODE (R/W)  Horizontal Interrupt Type
+Types:
+  0    Line Compare
+  1    Horizontal Blank
+
+$72    INT_TA   .B    Timer A
+$73    INT_TB   .B    Timer B
+
+$74    INT_D1   .B    DMA 1
+$75    INT_D2   .B    DMA 2
+
+$76    INT_SER  .B    Link Serial Data Received
+$77    INT_CON  .B    Controller Serial Data Received
+
+$78    INT_IR   .B    Infrared
+
+$79    INT_EXT  .B    Hexridge EXT
++-+-+-+-+-+-=-=-+
+|X|-|-|-|E| LVL |
++-+-+-+-+-+-=-=-+
+ |
+ +-------------------  EXT (R)  EXT Line State
+
+
+## LCD Control Registers
+
+$80    LCD_CTL  .B    LCD Control
++-+-+-+-+-+-+-=-+
+|-|-|-|-|L|S|STA|
++-+-+-+-+-+-+-=-+
+         | |  |
+         | |  +------  STAT  (R)    LCD Controller Status
+         | +---------  SEGEN (R/W)  Segments Enable
+         +-----------  LCDEN (R/W)  Hexagon LCD Enable
+Status:
+  0    Pre-render / Active Display
+  1    Horizontal Blank
+  2    Vertical Blank
+  3    Horizontal + Vertical Blank
+
+$81    LCD_BATSEG  .B    LCD Battery Segments (R/W)
++-+-+-+-+-+-+-+-+
+|-|-|-|-| | | | |
++-+-+-+-+-+-+-+-+
+         | | | |
+         v v v v
+        +-------+
+       [|#|#|#|#|
+        +-------+
+
+$82    LCD_LINE  .W    LCD Current Line (R)
++-+-+-+-+-+-+-+-=-=-=-=-=-=-=-=-+
+|0|0|0|0|0|0|0|      Line       |
++-+-+-+-+-+-+-+-=-=-=-=-=-=-=-=-+
+The horizontal line that the LCD controller is currently on. Ranges from 0 to 261.
+
+$84    LCD_LINECP  .W    LCD Compare Line (R/W)
++-+-+-+-+-+-+-+-=-=-=-=-=-=-=-=-+
+|-|-|-|-|-|-|-|      Line       |
++-+-+-+-+-+-+-+-=-=-=-=-=-=-=-=-+
+The horizontal line to fire a Line Compare interrupt on.
+
+$86    RAD_CTL  .W    RadarPPU Control
++-+-+-+-+-+-+-+-+-+-+-+-+-=-+-=-+
+|H|H|I|I|I|O|O|O|W|S|B|B|BGS|BGM|
++-+-+-+-+-+-+-+-+-+-+-+-+-=-+-=-+
+ | | | | | | | | | | | |  |   |
+ | | | | | | | | | | | |  |   +------  BGM    (R/W)  Background Mode
+ | | | | | | | | | | | |  +----------  BGS    (R/W)  Background Sub-mode
+ | | | | | | | | | | | +-------------  BG1EN  (R/W)  Enable BG1
+ | | | | | | | | | | +---------------  BG2EN  (R/W)  Enable BG2
+ | | | | | | | | | +-----------------  SPREN  (R/W)  Enable SPR
+ | | | | | | | | +-------------------  WINEN  (R/W)  Enable Window
+ | | | | | | | +---------------------  OUTBG1 (R/W)  BG1 Display Outside Window
+ | | | | | | +-----------------------  OUTBG2 (R/W)  BG2 Display Outside Window
+ | | | | | +-------------------------  OUTSPR (R/W)  SPR Display Outside Window
+ | | | | +---------------------------  INBG1  (R/W)  BG1 Display Inside Window
+ | | | +-----------------------------  INBG2  (R/W)  BG2 Display Inside Window
+ | | +-------------------------------  INSPR  (R/W)  SPR Display Inside Window
+ | +---------------------------------  HCBG1  (R/W)  Enable Hexagon Correction for BG1
+ +-----------------------------------  HCBG2  (R/W)  Enable Hexagon Correction for BG2
+
+$88    RAD_WINL  .B    Window Left Edge   (R/W)
+$89    RAD_WINT  .B    Window Top Edge    (R/W)
+$8A    RAD_WINR  .B    Window Right Edge  (R/W)
+$8B    RAD_WINB  .B    Window Bottom Edge (R/W)
+These 8-bit registers configure the edges of the window rectangle.
+
+$8C    RAD_BG1X  .B    BG1 X Scroll (R/W)
+$8D    RAD_BG1Y  .B    BG1 Y Scroll (R/W)
+$8E    RAD_BG2X  .B    BG2 X Scroll (R/W)
+$8F    RAD_BG2Y  .B    BG2 Y Scroll (R/W)
+These 8-bit registers configure the scrolling offsets for the background layers.
+
+
+## 7-Segment LCD Data
+
+$90    LCD_7SEG+0  .B    (R/W)
+$91    LCD_7SEG+1  .B    (R/W)
+$92    LCD_7SEG+2  .B    (R/W)
+$93    LCD_7SEG+3  .B    (R/W)
+$94    LCD_7SEG+4  .B    (R/W)
+$95    LCD_7SEG+5  .B    (R/W)
+$96    LCD_7SEG+6  .B    (R/W)
+$97    LCD_7SEG+7  .B    (R/W)
++-+-+-+-+-+-+-+-+
+|-|G|F|E|D|C|B|A|
++-+-+-+-+-+-+-+-+
+      A
+    -----
+ F |     | B
+   |  G  |
+    -----
+ E |     | C
+   |  D  |
+    -----
+
+
+## LCD Module Miscellaneous
+
+$98    BLD_CTL  .B    Backlight Driver Control
++-+-+-+-+-+-+-+-+
+|T|-|-|-|-|-|-|E|
++-+-+-+-+-+-+-+-+
+ |             |
+ |             +-----  EN   (R/W)  Backlight Enable
+ +-------------------  TYPE (R)    Backlight Type
+Backlight Types:
+  0    Monochrome
+  1    RGB
+
+$99    BLD_R  .B    Backlight Driver Red/Monochrome Intensity (R/W)
+$9A    BLD_G  .B    Backlight Driver Green Intensity          (R/W)
+$9B    BLD_B  .B    Backlight Driver Blue Intensity           (R/W)
+These 8-bit registers configure the brightnesses of each backlight RGB channel.
+
+$9F    LCD_VER  .B    LCD Module Version Number (R)
+
+
+## PowerNoise Core #1
+## PowerNoise Core #2
+
+$C0    PN1_ACTL  .B    #1 Audio Control
+$E0    PN2_ACTL  .B    #2 Audio Control
++-+-+-+-+-+-=-=-+
+|E|*|*|-|-| VOL |
++-+-+-+-+-+-=-=-+
+ | | |       |
+ | | |       +-------  VOL (R/W)  Core Volume/Attenuation
+ | +-+---------------  These bits are undefined in the HiveCraft.
+ +-------------------  EN  (R/W)  Core Enable
+
+$D8    PN1_SLACC  .B    #1 Slope Accumulator
+$F8    PN2_SLACC  .B    #2 Slope Accumulator
++-+-=-=-=-=-=-=-+
+|-|     ACC     |
++-+-=-=-=-=-=-=-+
+         |
+         +-----------  ACC (R/W)  Accumulator Content
+
+$C1    PN1_N1CTL  .B    #1 Noise 1 Control
+$C9    PN1_N2CTL  .B    #1 Noise 2 Control
+$D1    PN1_N3CTL  .B    #1 Noise 3 Control (?)
+$E1    PN2_N1CTL  .B    #2 Noise 1 Control
+$E9    PN2_N2CTL  .B    #2 Noise 2 Control
+$F1    PN2_N3CTL  .B    #2 Noise 3 Control (?)
++-+-+-+-+-+-+-+-+
+|E|-|-|-|-|-|A|M|
++-+-+-+-+-+-+-+-+
+ |           | |
+ |           | +-----  MODE (R/W)  Disable Tap B
+ |           +-------  AM   (R/W)  Enable Slope AM
+ +-------------------  EN   (R/W)  Noise Channel Enable
+
+$D9    PN1_SLCTL  .B    #1 Slope Control
+$F9    PN2_SLCTL  .B    #2 Slope Control
++-+-+-+-+-+-+-+-+
+|E|T|A|B|A|B|A|B|
++-+-+-+-+-+-+-+-+
+ | | | | | | | |
+ | | | | | | | +-----  BDN  (R/W)  Portion B Down
+ | | | | | | +-------  ADN  (R/W)  Portion A Down
+ | | | | | +---------  BRES (R/W)  Portion B Reset
+ | | | | +-----------  ARES (R/W)  Portion A Reset
+ | | | +-------------  BCL  (R/W)  Portion B Clip
+ | | +---------------  ACL  (R/W)  Portion A Clip
+ | +-----------------  TRG  (W)    Wave Trigger
+ +-------------------  EN   (R/W)  Slope Channel Enable
+
+$C2    PN1_N1F  .W    #1 Noise 1 Frequency
+$CA    PN1_N2F  .W    #1 Noise 2 Frequency
+$D2    PN1_N3F  .W    #1 Noise 3 Frequency (?)
+$DA    PN1_SLF  .W    #1 Slope Frequency
+$E2    PN2_N1F  .W    #2 Noise 1 Frequency
+$EA    PN2_N2F  .W    #2 Noise 2 Frequency
+$F2    PN2_N3F  .W    #2 Noise 3 Frequency (?)
+$FA    PN2_SLF  .W    #2 Slope Frequency
++-=-=-=-+-=-=-=-=-=-=-=-=-=-=-=-+
+|  OCT  |           R           |
++-=-=-=-+-=-=-=-=-=-=-=-=-=-=-=-+
+    |               |
+    |               +----------------  R   (R/W)  Timer Reload Value
+    +--------------------------------  OCT (R/W)  Octave Select
+
+$C4    PN1_N1SR  .W    #1 Noise 1 Shift Register (R/W)
+$CC    PN1_N2SR  .W    #1 Noise 2 Shift Register (R/W)
+$D4    PN1_N3SR  .W    #1 Noise 3 Shift Register (R/W) (?)
+$E4    PN2_N1SR  .W    #2 Noise 1 Shift Register (R/W)
+$EC    PN2_N2SR  .W    #2 Noise 2 Shift Register (R/W)
+$F4    PN2_N3SR  .W    #2 Noise 3 Shift Register (R/W) (?)
+The current 16-bit contents of the Linear Feedback Shift Registers.
+
+$C6    PN1_N1TAP  .B    #1 Noise 1 Tap Locations
+$CE    PN1_N2TAP  .B    #1 Noise 2 Tap Locations
+$D6    PN1_N3TAP  .B    #1 Noise 3 Tap Locations (?)
+$E6    PN2_N1TAP  .B    #2 Noise 1 Tap Locations
+$EE    PN2_N2TAP  .B    #2 Noise 2 Tap Locations
+$F6    PN2_N3TAP  .B    #2 Noise 3 Tap Locations (?)
++-=-=-=-+-=-=-=-+
+|   A   |   B   |
++-=-=-=-+-=-=-=-+
+    |       |
+    |       +--------  B (R/W)  Tap B Location
+    +----------------  A (R/W)  Tap A Location
+
+$DC    PN1_SLPA  .B    #1 Slope Portion A Length (R/W)
+$DD    PN1_SLPB  .B    #1 Slope Portion B Length (R/W)
+$FC    PN2_SLPA  .B    #2 Slope Portion A Length (R/W)
+$FD    PN2_SLPB  .B    #2 Slope Portion B Length (R/W)
+These 8-bit registers configure the lengths of each slope wave portion.
+
+$DE    PN1_SLPO  .B    #1 Slope Portion Offsets
+$FE    PN2_SLPO  .B    #2 Slope Portion Offsets
++-=-=-=-+-=-=-=-+
+|   A   |   B   |
++-=-=-=-+-=-=-=-+
+    |       |
+    |       +--------  B (R/W)  Portion B Offset
+    +----------------  A (R/W)  Portion A Offset
+
+$C7    PN1_N1V  .B    #1 Noise 1 Volume
+$CF    PN1_N2V  .B    #1 Noise 2 Volume
+$D7    PN1_N3V  .B    #1 Noise 3 Volume (?)
+$DF    PN1_SLV  .B    #1 Slope Volume & Mask
+$E7    PN2_N1V  .B    #2 Noise 1 Volume
+$EF    PN2_N2V  .B    #2 Noise 2 Volume
+$F7    PN2_N3V  .B    #2 Noise 3 Volume (?)
+$FF    PN2_SLV  .B    #2 Slope Volume & Mask
++-=-=-=-+-=-=-=-+
+|   L   |   R   |
++-=-=-=-+-=-=-=-+
+    |       |
+    |       +--------  R (R/W)  Right Volume
+    +----------------  L (R/W)  Left Volume
+
+GPIO:
+
+$C8    PN1_IOA  .B    #1 I/O Port A (R/W)  // configured as output
++-+-+-+-+-=-+-+-+
+|X|X|-|-|SH |L|R|
++-+-+-+-+-=-+-+-+
+ | |      |  | |
+ | |      |  | +-----  R  (R/W)  Raw PCM Output to Right
+ | |      |  +-------  L  (R/W)  Raw PCM Output to Left
+ | |      +----------  SH (R/W)  Raw PCM Data Shift Amount
+ | +-----------------  XR (R/W)  Right Expansion Audio Enable
+ +-------------------  XL (R/W)  Left Expansion Audio Enable
+
+$D0    PN1_IOB  .B    #1 I/O Port B (R/W)  // configured as output
++-=-=-=-=-=-=-=-+
+|      DAC      |
++-=-=-=-=-=-=-=-+
+        |
+        +------------  DAC (R/W)  Raw PCM Channel Data
+
+$E8    PN2_IOA  .B    #2 I/O Port A (R/W)  // configured as output
++-+-+-+-+-+-+-+-+
+|-|-|-|-|-|-|L|L|
++-+-+-+-+-+-+-+-+
+             | |
+             | +-----  LO0 (R/W)  Link General Output 0
+             +-------  LO1 (R/W)  Link General Output 1
+
+$F0    PN2_IOB  .B    #2 I/O Port B (R)  // configured as input
++-+-+-+-+-+-+-+-+
+|1|P|S|B|B|B|L|L|
++-+-+-+-+-+-+-+-+
+   | | | | | | |
+   | | | | | | +-----  LI0   (R)  Link General Input 0
+   | | | | | +-------  LI1   (R)  Link General Input 1
+   | | | | +---------  BLADJ (R)  Backlight Adjust
+   | | | +-----------  BLUP  (R)  Backlight Up
+   | | +-------------  BLDN  (R)  Backlight Down
+   | +---------------  SEL   (R)  Select
+   +-----------------  PAUSE (R)  Pause
