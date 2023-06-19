@@ -289,16 +289,6 @@ Status:
   2    Vertical Blank
   3    Horizontal + Vertical Blank
 
-$81    LCD_BATSEG  .B    LCD Battery Segments (R/W)
-+-+-+-+-+-+-+-+-+
-|-|-|-|-| | | | |
-+-+-+-+-+-+-+-+-+
-         | | | |
-         v v v v
-        +-------+
-       [|#|#|#|#|
-        +-------+
-
 $82    LCD_LINE  .W    LCD Current Line (R)
 +-+-+-+-+-+-+-+-=-=-=-=-=-=-=-=-+
 |0|0|0|0|0|0|0|      Line       |
