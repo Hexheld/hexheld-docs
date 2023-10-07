@@ -30,9 +30,9 @@ $70 - $7F    Interrupt Controller
 $80 - $8F    LCD Control Registers
 $90 - $97    7-Segment LCD Data
 $98 - $9F    LCD Module Miscellaneous (?)
-$A0 - $A7    High-Priority OBJ Palette Map
+$A0 - $A7    High-Priority SPR Palette Map
 $A8 - $AF    High-Priority BG Palette Map
-$B0 - $B7    Low-Priority OBJ Palette Map
+$B0 - $B7    Low-Priority SPR Palette Map
 $B8 - $BF    Low-Priority BG Palette Map
 
 $C0 - $DF    PowerNoise Core #1
@@ -409,7 +409,7 @@ $F1    PN2_N3CTL  .B    #2 Noise 3 Control (?)
 |E|-|-|-|-|-|A|M|
 +-+-+-+-+-+-+-+-+
  |           | |
- |           | +-----  MODE (R/W)  Disable Tap B
+ |           | +-----  MODE (R/W)  Enable Tap B
  |           +-------  AM   (R/W)  Enable Slope AM
  +-------------------  EN   (R/W)  Noise Channel Enable
 
