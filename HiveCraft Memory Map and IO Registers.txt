@@ -9,8 +9,8 @@ $100000 - $1FFFFF    1 MB  8-bit     Hexridge CS2
 $200000 - $FF9FFF  ~14 MB  8-bit     Hexridge ROM
 $FFA000 - $FFDFFF   16 KB  8-bit     Boot ROM ->(unmap)-> Hexridge ROM
 
-$FFE000 - $FFEFFF    4 KB  ?-bit     Tilemap RAM
-$FFF000 - $FFF27F   640 B  ?-bit     Sprite Attribute RAM
+$FFE000 - $FFEFFF    4 KB  8-bit     Tilemap RAM
+$FFF000 - $FFF27F   640 B  8-bit     Sprite Attribute RAM
 $FFF280 - $FFF2FF   128 B            <reserved>
 $FFF300 - $FFF3FF   256 B  ?-bit     I/O Registers
 $FFF400 - $FFFFFF    3 KB  16-bit    HRAM
@@ -29,14 +29,15 @@ $70 - $7F    Interrupt Controller
 
 $80 - $8F    LCD Control Registers
 $90 - $97    7-Segment LCD Data
-$98 - $9F    LCD Module Miscellaneous (?)
+$98 - $9F    LCD Module Miscellaneous
 $A0 - $A7    High-Priority SPR Palette Map
 $A8 - $AF    High-Priority BG Palette Map
 $B0 - $B7    Low-Priority SPR Palette Map
 $B8 - $BF    Low-Priority BG Palette Map
 
-$C0 - $DF    PowerNoise Core #1
-$E0 - $FF    PowerNoise Core #2
+$C0 - $DF    Audio (PowerNoise and PCM)
+
+$E0 - $FF    <reserved>
 
 Do not attempt to access a reserved register.
 
@@ -101,9 +102,9 @@ Size:
   0    Byte (.B)
   1    Word (.W)
 
-$12    D1_C  .W    DMA 1 Timer Content (R/W)
-$22    D2_C  .W    DMA 2 Timer Content (R/W)
-The current 16-bit contents of the DMA timers. These timers control the sizes of the DMA transfers.
+$12    D1_N  .W    DMA 1 Transfer Count (R/W)
+$22    D2_N  .W    DMA 2 Transfer Count (R/W)
+The current 16-bit contents of the DMA size counters.
 
 $14    D1_SA  .P    DMA 1 Source Address (R/W)
 $24    D2_SA  .P    DMA 2 Source Address (R/W)
@@ -140,9 +141,21 @@ $32    IR_CTL  .B    Infrared Control
 |I|-|-|-|-|-|S|O|
 +-+-+-+-+-+-+-+-+
  |           | |
- |           | +-----  OUT (R/W)  Infrared Transmitter Light Disable
+ |           | +-----  OUT (R/W)  Infrared Transmitter Light Enable
  |           +-------  SRD (R/W)  Infrared Receiver Signal Read Enable
  +-------------------  IN  (R)    Signal from Infrared Receiver
+
+$34    CONSBTN  .B    On-Console Button State
++-+-+-+-+-+-+-+-+
+|-|-|D|P|S|B|B|B|
++-+-+-+-+-+-+-+-+
+     | | | | | |
+     | | | | | +-----  BLADJ (R)  Backlight Adjust
+     | | | | +-------  BLUP  (R)  Backlight Up
+     | | | +---------  BLDN  (R)  Backlight Down
+     | | +-----------  SEL   (R)  Select
+     | +-------------  PAUSE (R)  Pause
+     +---------------  DEBUG (R)  Debug (devkit only)
 
 $3C    CDIV  .W    Clock Divider Bits (R)
 The 16-bit contents of the divider/ripple counter.
@@ -159,7 +172,7 @@ Speeds:
   0    8 MHz (DIV1)
   1    4 MHz (DIV2)
   2    2 MHz (DIV4)
-  3    32768 Hz (SUB)
+  3    16384 Hz (SUB / 2)
 
 $3F    HCVER  .B    HiveCraft SoC Version Number (R)
 
@@ -197,7 +210,7 @@ $51    CON_CTL  .B    Controller Serial Control
  | |          |
  | |          +------  CLK  (R/W)  Serial Transfer Clock Toggle Source
  | +-----------------  NEWR (R)    New Byte Received Flag
- +-------------------  BUSY (R)    Serial Transfer Busy (SER_CTL only, always clear in CON_CTL)
+ +-------------------  BUSY (R)    Serial Transfer Busy (SER_CTL only, undefined in CON_CTL)
 Clock Sources:
   0    2 MHz (DIV4)       1 MHz
   1    500 KHz (DIV16)    250 KHz
@@ -214,6 +227,14 @@ $54    CON_R1  .B    Controller 1 Serial Receive Data (R)
 $55    CON_R2  .B    Controller 2 Serial Receive Data (R)
 $56    CON_R3  .B    Controller 3 Serial Receive Data (R)
 The 8-bit controller serial data received. Clears NEWR in CON_CTL when CON_R3 is accessed.
+
+$58    SER_AUX  .B    Link Auxiliary I/O
++-+-+-+-+-+-+-+-+
+|-|-|-|-|-|-|I|O|
++-+-+-+-+-+-+-+-+
+             | |
+             | +-----  OUT (R/W)  Link Auxiliary Output
+             +-------  IN  (R)    Link Auxiliary Input
 
 
 ## Settings RAM + Key
@@ -373,48 +394,41 @@ Backlight Types:
 $99    BLD_R  .B    Backlight Driver Red/Monochrome Intensity (R/W)
 $9A    BLD_G  .B    Backlight Driver Green Intensity          (R/W)
 $9B    BLD_B  .B    Backlight Driver Blue Intensity           (R/W)
-These 8-bit registers configure the brightnesses of each backlight RGB channel.
+These 8-bit registers configure the backlight intensity or RGB color.
 
 $9F    LCD_VER  .B    LCD Module Version Number (R)
 
 
-## PowerNoise Core #1
-## PowerNoise Core #2
+## Audio (PowerNoise and PCM)
 
-$C0    PN1_ACTL  .B    #1 Audio Control
-$E0    PN2_ACTL  .B    #2 Audio Control
+$C0    PN_ACTL  .B    PowerNoise Audio Control
 +-+-+-+-+-+-=-=-+
 |E|*|*|-|-| VOL |
 +-+-+-+-+-+-=-=-+
  | | |       |
- | | |       +-------  VOL (R/W)  Core Volume/Attenuation
- | +-+---------------  These bits are undefined in the HiveCraft.
- +-------------------  EN  (R/W)  Core Enable
+ | | |       +-------  VOL (R/W)  PowerNoise Core Master Volume
+ | +-+---------------  (The I/O ports have fixed directions in the HiveCraft.)
+ +-------------------  EN  (R/W)  PowerNoise Core Enable
 
-$D8    PN1_SLACC  .B    #1 Slope Accumulator
-$F8    PN2_SLACC  .B    #2 Slope Accumulator
+$D8    PN_SLACC  .B    PowerNoise Slope Accumulator
 +-+-=-=-=-=-=-=-+
 |-|     ACC     |
 +-+-=-=-=-=-=-=-+
          |
          +-----------  ACC (R/W)  Accumulator Content
 
-$C1    PN1_N1CTL  .B    #1 Noise 1 Control
-$C9    PN1_N2CTL  .B    #1 Noise 2 Control
-$D1    PN1_N3CTL  .B    #1 Noise 3 Control (?)
-$E1    PN2_N1CTL  .B    #2 Noise 1 Control
-$E9    PN2_N2CTL  .B    #2 Noise 2 Control
-$F1    PN2_N3CTL  .B    #2 Noise 3 Control (?)
+$C1    PN_N1CTL  .B    PowerNoise Noise 1 Control
+$C9    PN_N2CTL  .B    PowerNoise Noise 2 Control
+$D1    PN_N3CTL  .B    PowerNoise Noise 3 Control
 +-+-+-+-+-+-+-+-+
 |E|-|-|-|-|-|A|M|
 +-+-+-+-+-+-+-+-+
  |           | |
  |           | +-----  MODE (R/W)  Enable Tap B
  |           +-------  AM   (R/W)  Enable Slope AM
- +-------------------  EN   (R/W)  Noise Channel Enable
+ +-------------------  EN   (R/W)  Channel Enable
 
-$D9    PN1_SLCTL  .B    #1 Slope Control
-$F9    PN2_SLCTL  .B    #2 Slope Control
+$D9    PN_SLCTL  .B    PowerNoise Slope Control
 +-+-+-+-+-+-+-+-+
 |E|T|A|B|A|B|A|B|
 +-+-+-+-+-+-+-+-+
@@ -426,16 +440,12 @@ $F9    PN2_SLCTL  .B    #2 Slope Control
  | | | +-------------  BCL  (R/W)  Portion B Clip
  | | +---------------  ACL  (R/W)  Portion A Clip
  | +-----------------  TRG  (W)    Wave Trigger
- +-------------------  EN   (R/W)  Slope Channel Enable
+ +-------------------  EN   (R/W)  Channel Enable
 
-$C2    PN1_N1F  .W    #1 Noise 1 Frequency
-$CA    PN1_N2F  .W    #1 Noise 2 Frequency
-$D2    PN1_N3F  .W    #1 Noise 3 Frequency (?)
-$DA    PN1_SLF  .W    #1 Slope Frequency
-$E2    PN2_N1F  .W    #2 Noise 1 Frequency
-$EA    PN2_N2F  .W    #2 Noise 2 Frequency
-$F2    PN2_N3F  .W    #2 Noise 3 Frequency (?)
-$FA    PN2_SLF  .W    #2 Slope Frequency
+$C2    PN_N1F  .W    PowerNoise Noise 1 Frequency
+$CA    PN_N2F  .W    PowerNoise Noise 2 Frequency
+$D2    PN_N3F  .W    PowerNoise Noise 3 Frequency
+$DA    PN_SLF  .W    PowerNoise Slope Frequency
 +-=-=-=-+-=-=-=-=-=-=-=-=-=-=-=-+
 |  OCT  |           R           |
 +-=-=-=-+-=-=-=-=-=-=-=-=-=-=-=-+
@@ -443,20 +453,14 @@ $FA    PN2_SLF  .W    #2 Slope Frequency
     |               +----------------  R   (R/W)  Timer Reload Value
     +--------------------------------  OCT (R/W)  Octave Select
 
-$C4    PN1_N1SR  .W    #1 Noise 1 Shift Register (R/W)
-$CC    PN1_N2SR  .W    #1 Noise 2 Shift Register (R/W)
-$D4    PN1_N3SR  .W    #1 Noise 3 Shift Register (R/W) (?)
-$E4    PN2_N1SR  .W    #2 Noise 1 Shift Register (R/W)
-$EC    PN2_N2SR  .W    #2 Noise 2 Shift Register (R/W)
-$F4    PN2_N3SR  .W    #2 Noise 3 Shift Register (R/W) (?)
+$C4    PN_N1SR  .W    PowerNoise Noise 1 Shift Register (R/W)
+$CC    PN_N2SR  .W    PowerNoise Noise 2 Shift Register (R/W)
+$D4    PN_N3SR  .W    PowerNoise Noise 3 Shift Register (R/W)
 The current 16-bit contents of the Linear Feedback Shift Registers.
 
-$C6    PN1_N1TAP  .B    #1 Noise 1 Tap Locations
-$CE    PN1_N2TAP  .B    #1 Noise 2 Tap Locations
-$D6    PN1_N3TAP  .B    #1 Noise 3 Tap Locations (?)
-$E6    PN2_N1TAP  .B    #2 Noise 1 Tap Locations
-$EE    PN2_N2TAP  .B    #2 Noise 2 Tap Locations
-$F6    PN2_N3TAP  .B    #2 Noise 3 Tap Locations (?)
+$C6    PN_N1TAP  .B    PowerNoise Noise 1 Tap Locations
+$CE    PN_N2TAP  .B    PowerNoise Noise 2 Tap Locations
+$D6    PN_N3TAP  .B    PowerNoise Noise 3 Tap Locations
 +-=-=-=-+-=-=-=-+
 |   A   |   B   |
 +-=-=-=-+-=-=-=-+
@@ -464,14 +468,11 @@ $F6    PN2_N3TAP  .B    #2 Noise 3 Tap Locations (?)
     |       +--------  B (R/W)  Tap B Location
     +----------------  A (R/W)  Tap A Location
 
-$DC    PN1_SLPA  .B    #1 Slope Portion A Length (R/W)
-$DD    PN1_SLPB  .B    #1 Slope Portion B Length (R/W)
-$FC    PN2_SLPA  .B    #2 Slope Portion A Length (R/W)
-$FD    PN2_SLPB  .B    #2 Slope Portion B Length (R/W)
-These 8-bit registers configure the lengths of each slope wave portion.
+$DC    PN_SLPA  .B    PowerNoise Slope Portion A Length (R/W)
+$DD    PN_SLPB  .B    PowerNoise Slope Portion B Length (R/W)
+These 8-bit registers configure the lengths of the slope wave portions.
 
-$DE    PN1_SLPO  .B    #1 Slope Portion Offsets
-$FE    PN2_SLPO  .B    #2 Slope Portion Offsets
+$DE    PN_SLPO  .B    PowerNoise Slope Portion Offsets
 +-=-=-=-+-=-=-=-+
 |   A   |   B   |
 +-=-=-=-+-=-=-=-+
@@ -479,14 +480,10 @@ $FE    PN2_SLPO  .B    #2 Slope Portion Offsets
     |       +--------  B (R/W)  Portion B Offset
     +----------------  A (R/W)  Portion A Offset
 
-$C7    PN1_N1V  .B    #1 Noise 1 Volume
-$CF    PN1_N2V  .B    #1 Noise 2 Volume
-$D7    PN1_N3V  .B    #1 Noise 3 Volume (?)
-$DF    PN1_SLV  .B    #1 Slope Volume & Mask
-$E7    PN2_N1V  .B    #2 Noise 1 Volume
-$EF    PN2_N2V  .B    #2 Noise 2 Volume
-$F7    PN2_N3V  .B    #2 Noise 3 Volume (?)
-$FF    PN2_SLV  .B    #2 Slope Volume & Mask
+$C7    PN_N1V  .B    PowerNoise Noise 1 Volume
+$CF    PN_N2V  .B    PowerNoise Noise 2 Volume
+$D7    PN_N3V  .B    PowerNoise Noise 3 Volume
+$DF    PN_SLV  .B    PowerNoise Slope Volume
 +-=-=-=-+-=-=-=-+
 |   L   |   R   |
 +-=-=-=-+-=-=-=-+
@@ -494,9 +491,9 @@ $FF    PN2_SLV  .B    #2 Slope Volume & Mask
     |       +--------  R (R/W)  Right Volume
     +----------------  L (R/W)  Left Volume
 
-GPIO:
+PCM (repurposed GPIO):
 
-$C8    PN1_IOA  .B    #1 I/O Port A (R/W)  // configured as output
+$C8    PCM_CTL  .B    PCM and Expansion Audio Control
 +-+-+-+-+-=-+-+-+
 |X|X|-|-|SH |L|R|
 +-+-+-+-+-=-+-+-+
@@ -507,30 +504,5 @@ $C8    PN1_IOA  .B    #1 I/O Port A (R/W)  // configured as output
  | +-----------------  XR (R/W)  Right Expansion Audio Enable
  +-------------------  XL (R/W)  Left Expansion Audio Enable
 
-$D0    PN1_IOB  .B    #1 I/O Port B (R/W)  // configured as output
-+-=-=-=-=-=-=-=-+
-|      DAC      |
-+-=-=-=-=-=-=-=-+
-        |
-        +------------  DAC (R/W)  Raw PCM Channel Data
-
-$E8    PN2_IOA  .B    #2 I/O Port A (R/W)  // configured as output
-+-+-+-+-+-+-+-+-+
-|-|-|-|-|-|-|L|L|
-+-+-+-+-+-+-+-+-+
-             | |
-             | +-----  LO0 (R/W)  Link General Output 0
-             +-------  LO1 (R/W)  Link General Output 1
-
-$F0    PN2_IOB  .B    #2 I/O Port B (R)  // configured as input
-+-+-+-+-+-+-+-+-+
-|1|P|S|B|B|B|L|L|
-+-+-+-+-+-+-+-+-+
-   | | | | | | |
-   | | | | | | +-----  LI0   (R)  Link General Input 0
-   | | | | | +-------  LI1   (R)  Link General Input 1
-   | | | | +---------  BLADJ (R)  Backlight Adjust
-   | | | +-----------  BLUP  (R)  Backlight Up
-   | | +-------------  BLDN  (R)  Backlight Down
-   | +---------------  SEL   (R)  Select
-   +-----------------  PAUSE (R)  Pause
+$D0    PCM_DATA  .B    PCM Channel Data (R/W)
+The 8-bit unsigned sample input for the PCM channel.
