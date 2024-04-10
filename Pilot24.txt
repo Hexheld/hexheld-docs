@@ -48,7 +48,7 @@ X is a ditto of C, specifically used to chain arithmetic operations together to 
 Decimal Mode applies to the byte (.B) versions of ADD, ADX, SUB, SBX, NEG, and NGX.
 
 IRL specifies which IRQ levels should be monitored.
-Only the IRQ numbers less than IRL and the one equal to IRL will be processed. The greater ones will be masked out.
+Only the IRQ numbers less than and equal to IRL will be processed. The greater ones will be masked out.
 
 Bit 0 of PGC is fixed to zero. This means that instruction words must be word-aligned.
 
@@ -113,7 +113,7 @@ The amount to increment/decrement by depends on the size of the data being acces
     16-bit (.W) - 2
     24-bit (.P) - 4 (not 3)
 
-All writes to immediate values will fail silently.
+All writes to immediate values fail silently. This is a normal behavior of the processor.
 
 Register Index Word:
 
@@ -153,13 +153,13 @@ zz00 0110 10mm mmmm  rmw          SWAP.z  rm.rmw
 zz00 0111 10mm mmmm  rmw          SRL.z   rm.rmw
 zz00 0nnn 11mm mmmm  rmw          SBQ.z   rm.rmw, uimm3+1
 zz00 1000 00ss ssss  src          TST.z   rm.src, L0/W0/P0
-zz00 1rrr 00ss ssss  src          MULU.z  r, rm.src  // r can't be L0, W0, or P0
+zz00 1rrr 00ss ssss  src          MULU.z  r, rm.src  // r can't be L0/W0/P0
 zz00 1000 01mm mmmm  rmw          CPL.z   rm.rmw
-zz00 1rrr 01ss ssss  src          MULS.z  r, rm.src  // r can't be L0, W0, or P0
+zz00 1rrr 01ss ssss  src          MULS.z  r, rm.src  // r can't be L0/W0/P0
 zz00 1000 10mm mmmm  rmw          NEG.z   rm.rmw
-zz00 1rrr 10ss ssss  src          DIVU.z  r, rm.src  // r can't be L0, W0, or P0
+zz00 1rrr 10ss ssss  src          DIVU.z  r, rm.src  // r can't be L0/W0/P0
 zz00 1000 11mm mmmm  rmw          NGX.z   rm.rmw
-zz00 1rrr 11ss ssss  src          DIVS.z  r, rm.src  // r can't be L0, W0, or P0
+zz00 1rrr 11ss ssss  src          DIVS.z  r, rm.src  // r can't be L0/W0/P0
 
 zz01 dddd ddss ssss  src  dst     LD.z    rm.dst, rm.src
 0z01 0rrr 11ss ssss  src          LDZX.z  r24, rm.src  // can't be used with .P
@@ -282,7 +282,7 @@ JEA     Jump to effective address
 CR      Call subroutine relative
 CALL    Call subroutine
 CEA     Call subroutine at effective address
-RST     Restart
+RST     Call RST subroutine
 DJNZ    Decrement and jump on non-zero
 
 Miscellaneous Instructions:
@@ -302,7 +302,7 @@ ILG     Raise Illegal Instruction Exception
      Z - Set if the sum is zero, cleared if not.
      C, X - Both set if the addition operation produced a carry, both cleared if it didn't.
      VP - Set if the sum exceeded the signed range of the operation size, cleared otherwise.
-          Unpredictable if the operation was a Decimal Mode byte addition.
+          Unpredictable for Decimal Mode calculations.
 +-------------+--------+---------------------------------------+
 | ADQ   B/W/P | ***V-- | rmw += imm                            |
 +-------------+--------+---------------------------------------+
@@ -320,7 +320,7 @@ ILG     Raise Illegal Instruction Exception
      Z - Set if the sum is zero, cleared if not.
      C, X - Both set if the addition operation produced a carry, both cleared if it didn't.
      VP - Set if the sum exceeded the signed range of the operation size, cleared otherwise.
-          Unpredictable if the operation was a Decimal Mode byte addition.
+          Unpredictable for Decimal Mode calculations.
 +-------------+--------+---------------------------------------+
 | AND   B/W/P | **0P-- | rmw &= src                            |
 +-------------+--------+---------------------------------------+
@@ -329,18 +329,18 @@ ILG     Raise Illegal Instruction Exception
      S - Set if the result is negative, cleared if not.
      Z - Set if the result is zero, cleared if not.
      C - This flag is cleared.
-     VP - Set if the number of set bits in the result is even, cleared if odd.
+     VP - Set if the amount of binary 1s in the result is even, cleared if odd.
 +-------------+--------+---------------------------------------+
 | BIT         | -*---- | Z = ~src8.bit                         |
 +-------------+--------+---------------------------------------+
  Tests a bit of the source byte operand.
  Bit 0 is the position $01, while bit 7 is the position $80.
- If the M0 register is used as the bit number, only its lower 3 bits pertain to it.
+ If the M0 register is used as the bit number, only the lower 3 bits of it pertain to the bit number.
      Z - Set to the logical inverse of the given bit of the source operand.
 +-------------+--------+---------------------------------------+
 | CALL        | ------ | @-SP = PGC; PGC = src24               |
 +-------------+--------+---------------------------------------+
- Calls a subroutine with the address given by the source operand.
+ Calls a subroutine at the address given by the source operand.
 +-------------+--------+---------------------------------------+
 | CEA         | ------ | @-SP = PGC; PGC = EA of src24         |
 +-------------+--------+---------------------------------------+
@@ -352,7 +352,7 @@ ILG     Raise Illegal Instruction Exception
 +-------------+--------+---------------------------------------+
  Tests a bit of the read-modify-write byte operand, then changes that bit to its opposite state (logical inversion).
  Bit 0 is the position $01, while bit 7 is the position $80.
- If the M0 register is used as the bit number, only its lower 3 bits pertain to it.
+ If the M0 register is used as the bit number, only the lower 3 bits of it pertain to the bit number.
      Z - Set to the result of the change operation.
 +-------------+--------+---------------------------------------+
 | CP    B/W/P | ***V-- | (srcLeft - srcRight)                  |
@@ -370,7 +370,7 @@ ILG     Raise Illegal Instruction Exception
      S - Set if the result is negative, cleared if not.
      Z - Set if the result is zero, cleared if not.
      C - This flag is cleared.
-     VP - Set if the number of set bits in the result is even, cleared if odd.
+     VP - Set if the amount of binary 1s in the result is even, cleared if odd.
 +-------------+--------+---------------------------------------+
 | CR      S/L | ------ | @-SP = PGC; PGC += offset             |
 +-------------+--------+---------------------------------------+
@@ -382,7 +382,7 @@ ILG     Raise Illegal Instruction Exception
  Performs a division operation. The dividend, divisor, quotient, and remainder are all signed.
  R0 depends on the operation size: L0 for DIVS.B, W0 for DIVS.W, or P0 for DIVS.P.
  R0 supplies the upper half of the dividend.
- If the divisor is zero, the whole DIVS operation will terminate and the Divide By Zero Exception will be raised.
+ If the divisor is zero, the DIVS operation is discarded and the Divide By Zero Exception will be raised.
      S - Set if the quotient stored into the register operand is negative, cleared if not.
      Z - Set if the quotient stored into the register operand is zero, cleared if not.
      C - This flag is cleared.
@@ -393,14 +393,15 @@ ILG     Raise Illegal Instruction Exception
  Performs a division operation. The dividend, divisor, quotient, and remainder are all unsigned.
  R0 depends on the operation size: L0 for DIVU.B, W0 for DIVU.W, or P0 for DIVU.P.
  R0 supplies the upper half of the dividend.
- If the divisor is zero, the whole DIVU operation will terminate and the Divide By Zero Exception will be raised.
+ If the divisor is zero, the DIVU operation is discarded and the Divide By Zero Exception will be raised.
      S - Set if the quotient stored into the register operand is negative, cleared if not.
      Z - Set if the quotient stored into the register operand is zero, cleared if not.
-     C, VP - These flags are both cleared.
+     C - This flag is cleared.
+     VP - Set if the quotient exceeded the unsigned limit of the operation size, cleared otherwise.
 +-------------+--------+---------------------------------------+
 | DJNZ        | ------ | r24 -= 1; if r24 != 0 {PGC += offset} |
 +-------------+--------+---------------------------------------+
- Subtracts 1 from the register operand, and jumps backwards if the result of the decrement isn't zero.
+ Subtracts 1 from the register operand, and jumps backwards if the result of the decrement is not zero.
  If the result of the decrement is zero, the jump will not be taken and execution will continue past the DJNZ.
  The offset is one-extended. Therefore, it is always negative.
  The offset operand is typically presented as the immediate destination or a text label, rather than the offset.
@@ -409,7 +410,7 @@ ILG     Raise Illegal Instruction Exception
 +-------------+--------+---------------------------------------+
  Suspends CPU operations until an external interrupt (IRQ or NMI) occurs.
  The processor goes in a low-power state during this period.
- The interrupt will be processed and its handler will run before continuing to the instruction past HALT.
+ The interrupt will be processed and its handler code will run before continuing to the instruction past HALT.
 +-------------+--------+---------------------------------------+
 | ILG         | ------ | Illegal Instruction                   |
 +-------------+--------+---------------------------------------+
@@ -481,7 +482,7 @@ ILG     Raise Illegal Instruction Exception
      Z - Set if the difference is zero, cleared if not.
      C, X - Both set if the subtraction operation produced a borrow, both cleared if it didn't.
      VP - Set if the difference exceeded the signed range of the operation size, cleared otherwise.
-          Unpredictable if the operation was a Decimal Mode byte negation.
+          Unpredictable for Decimal Mode calculations.
 +-------------+--------+---------------------------------------+
 | NGX   B/W/P | ***V!* | rmw = 0 - (rmw + X)                   |
 +-------------+--------+---------------------------------------+
@@ -491,7 +492,7 @@ ILG     Raise Illegal Instruction Exception
      Z - Set if the difference is zero, cleared if not.
      C, X - Both set if the subtraction operation produced a borrow, both cleared if it didn't.
      VP - Set if the difference exceeded the signed range of the operation size, cleared otherwise.
-          Unpredictable if the operation was a Decimal Mode byte negation.
+          Unpredictable for Decimal Mode calculations.
 +-------------+--------+---------------------------------------+
 | NOP         | ------ | burnExecuteCycles(1)                  |
 +-------------+--------+---------------------------------------+
@@ -504,7 +505,7 @@ ILG     Raise Illegal Instruction Exception
      S - Set if the result is negative, cleared if not.
      Z - Set if the result is zero, cleared if not.
      C - This flag is cleared.
-     VP - Set if the number of set bits in the result is even, cleared if odd.
+     VP - Set if the amount of binary 1s in the result is even, cleared if odd.
 +-------------+--------+---------------------------------------+
 | REPI prefix | ------ | for i = 0; i < imm; i++ {(next)}      |
 +-------------+--------+---------------------------------------+
@@ -523,7 +524,7 @@ ILG     Raise Illegal Instruction Exception
 +-------------+--------+---------------------------------------+
  Tests a bit of the read-modify-write byte operand, then resets that bit to 0.
  Bit 0 is the position $01, while bit 7 is the position $80.
- If the M0 register is used as the bit number, only its lower 3 bits pertain to it.
+ If the M0 register is used as the bit number, only the lower 3 bits of it pertain to the bit number.
      Z - Set to the logical inverse of the given bit of the source operand.
 +-------------+--------+---------------------------------------+
 | RL    B/W/P | ****-* | X:rmw <<>= 1                          |
@@ -582,13 +583,13 @@ ILG     Raise Illegal Instruction Exception
      Z - Set if the difference is zero, cleared if not.
      C, X - Both set if the subtraction operation produced a borrow, both cleared if it didn't.
      VP - Set if the difference exceeded the signed range of the operation size, cleared otherwise.
-          Unpredictable if the operation was a Decimal Mode byte subtraction.
+          Unpredictable for Decimal Mode calculations.
 +-------------+--------+---------------------------------------+
 | SET         | -*---- | Z = ~rmw8.bit; rmw8.bit = 1           |
 +-------------+--------+---------------------------------------+
  Tests a bit of the read-modify-write byte operand, then sets that bit to 1.
  Bit 0 is the position $01, while bit 7 is the position $80.
- If the M0 register is used as the bit number, only its lower 3 bits pertain to it.
+ If the M0 register is used as the bit number, only the lower 3 bits of it pertain to the bit number.
      Z - Set to the logical inverse of the given bit of the source operand.
 +-------------+--------+---------------------------------------+
 | SLA   B/W/P | ****-* | rmw <<= 1                             |
@@ -623,7 +624,7 @@ ILG     Raise Illegal Instruction Exception
      Z - Set if the difference is zero, cleared if not.
      C, X - Both set if the subtraction operation produced a borrow, both cleared if it didn't.
      VP - Set if the difference exceeded the signed range of the operation size, cleared otherwise.
-          Unpredictable if the operation was a Decimal Mode byte subtraction.
+          Unpredictable for Decimal Mode calculations.
 +-------------+--------+---------------------------------------+
 | SWAP.B      | ------ | rmw8 <<>= 4                           |
 +-------------+--------+---------------------------------------+
@@ -644,7 +645,7 @@ ILG     Raise Illegal Instruction Exception
      S - Set if the result is negative, cleared if not.
      Z - Set if the result is zero, cleared if not.
      C - This flag is cleared.
-     VP - Set if the number of set bits in the result is even, cleared if odd.
+     VP - Set if the amount of binary 1s in the result is even, cleared if odd.
 +-------------+--------+---------------------------------------+
 | XOR   B/W/P | **0P-- | rmw ^^= src                           |
 +-------------+--------+---------------------------------------+
@@ -653,7 +654,7 @@ ILG     Raise Illegal Instruction Exception
      S - Set if the result is negative, cleared if not.
      Z - Set if the result is zero, cleared if not.
      C - This flag is cleared.
-     VP - Set if the number of set bits in the result is even, cleared if odd.
+     VP - Set if the amount of binary 1s in the result is even, cleared if odd.
 
 Macro Instructions:
 PUSH    Push to stack
@@ -783,8 +784,8 @@ If multiple interrupts/exceptions occur simultaneously, the vectors higher above
 *** PROCESSOR DESIGN NOTES ***
 
 - All instruction words and multi-byte values in memory are little-endian: the lowest byte is at the base address.
-- 16-bit and 24-bit memory accesses must be word-aligned. Odd addresses are converted into their next lower even.
-    As such, it is recommended to add 1 byte of padding to each 24-bit pointer in memory.
+- 16-bit and 24-bit memory accesses must be word-aligned. Bit 0 of the address is simply ignored.
+    As such, it is recommended to add 1 byte of padding to each 24-bit pointer value found in memory.
 - The stack uses the "full-descending" convention: SP decreases before storing, and increases after loading.
 - The return address pushed onto the stack is the address of the instruction following the call instruction.
 - PGC-relative offsets are relative to the address of the next instruction.
