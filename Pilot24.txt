@@ -772,7 +772,7 @@ Reset Routine:
     IRL = 0;
     PGC = $FFCFF0
 
-If multiple interrupts/exceptions occur simultaneously, the vectors higher above in this list will be run first:
+If multiple interrupts/exceptions occur simultaneously, the vectors higher above in this list will be ran first:
 
 1.  Reset
 2.  NMI
