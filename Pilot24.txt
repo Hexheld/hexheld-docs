@@ -56,9 +56,9 @@ Bit 0 of PGC is fixed to zero. This means that instruction words must be word-al
 *** INSTRUCTION OPERAND ENCODINGS ***
 
 Size:
-0 - Byte    (.B, 8-bit)
-1 - Word    (.W, 16-bit)
-2 - Pointer (.P, 24-bit)
+0 - 8-bit  (.B, Byte)
+1 - 16-bit (.W, Word)
+2 - 24-bit (.P, Pointer)
 
 Registers:
     .B (r8)  .W (r16)  .P (r24)
@@ -93,7 +93,7 @@ Conditions:
 
 A flexible type of operand which adds a level of orthogonality to the instruction set.
 
-0rrr00             r8/r16/r24     Register Direct
+0rrr00             r8/r16/r24     Register
 0rrr01  imm16      @r24+simm16    Register Relative
 0rrr10             @r24           Register Indirect
 1rrr00             @r24+          Register Indirect with Post-Increment
@@ -336,11 +336,12 @@ ILG     Raise Illegal Instruction Exception
  Tests a bit of the source byte operand.
  Bit 0 is the position $01, while bit 7 is the position $80.
  If the M0 register is used as the bit number, only the lower 3 bits of it pertain to the bit number.
+ This instruction is typically followed by a JR instruction of either Z or NZ condition.
      Z - Set to the logical inverse of the given bit of the source operand.
 +-------------+--------+---------------------------------------+
 | CALL        | ------ | @-SP = PGC; PGC = src24               |
 +-------------+--------+---------------------------------------+
- Calls a subroutine at the address given by the source operand.
+ Calls the subroutine at the address given by the source operand.
 +-------------+--------+---------------------------------------+
 | CEA         | ------ | @-SP = PGC; PGC = EA of src24         |
 +-------------+--------+---------------------------------------+
@@ -388,7 +389,7 @@ ILG     Raise Illegal Instruction Exception
      C - This flag is cleared.
      VP - Set if the quotient exceeded the signed range of the operation size, cleared otherwise.
 +-------------+--------+---------------------------------------+
-| DIVU  B/W/P | **00-- | r = R0:r / src; R0 = remainder        |
+| DIVU  B/W/P | **0*-- | r = R0:r / src; R0 = remainder        |
 +-------------+--------+---------------------------------------+
  Performs a division operation. The dividend, divisor, quotient, and remainder are all unsigned.
  R0 depends on the operation size: L0 for DIVU.B, W0 for DIVU.W, or P0 for DIVU.P.
@@ -512,7 +513,7 @@ ILG     Raise Illegal Instruction Exception
  Executes the next instruction a specified number of times from 1 to 32.
  The processor won't respond to all external interrupts (IRQ and NMI) until after the last iteration.
 +-------------+--------+---------------------------------------+
-| REPR prefix | -*---- | Z = 0; iter: (next); DJNZ r24, iter   |
+| REPR prefix | -0---- | Z = 0; iter: (next); DJNZ r24, iter   |
 +-------------+--------+---------------------------------------+
  Executes the next instruction a certain number of times according to the register operand.
  The register operand is modified after each iteration.
@@ -642,6 +643,7 @@ ILG     Raise Illegal Instruction Exception
 +-------------+--------+---------------------------------------+
  Performs a bitwise AND of the source operand and R0, and discards the result. The flags, however, will change.
  R0 depends on the operation size: L0 for TST.B, W0 for TST.W, or P0 for TST.P.
+ This instruction is typically followed by a JR instruction of either Z or NZ condition.
      S - Set if the result is negative, cleared if not.
      Z - Set if the result is zero, cleared if not.
      C - This flag is cleared.
@@ -765,7 +767,12 @@ Interrupt/Exception Routine:
     if isIRQ {IRL = IRQlevel - 1};
     PGC = vectorAddress
 
-If multiple interrupts/exceptions occur simultaneously, the vectors higher above in this list will run first:
+Reset Routine:
+
+    IRL = 0;
+    PGC = $FFCFF0
+
+If multiple interrupts/exceptions occur simultaneously, the vectors higher above in this list will be run first:
 
 1.  Reset
 2.  NMI
