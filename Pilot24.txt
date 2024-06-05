@@ -1,7 +1,7 @@
 
 *** INFORMATION ***
 
-This is a fantasy CPU created by The Beesh-Spweesh!, designed to replace the previous 16-bit Pilot CPU design.
+This is a fantasy CPU created by The Beesh-Spweesh!.
 
 This CPU has a 24-bit address bus, meaning it can access 16 MB of memory.
 The data bus is 16-bit, though sometimes it is restricted to 8-bit.
@@ -335,7 +335,7 @@ ILG     Raise Illegal Instruction Exception
 +-------------+--------+---------------------------------------+
  Tests a bit of the source byte operand.
  Bit 0 is the position $01, while bit 7 is the position $80.
- If the M0 register is used as the bit number, only the lower 3 bits of it pertain to the bit number.
+ If M0 is used as the bit number operand, only the lower 3 bits of it pertain to the bit number.
  This instruction is typically followed by a JR instruction of either Z or NZ condition.
      Z - Set to the logical inverse of the given bit of the source operand.
 +-------------+--------+---------------------------------------+
@@ -353,7 +353,7 @@ ILG     Raise Illegal Instruction Exception
 +-------------+--------+---------------------------------------+
  Tests a bit of the read-modify-write byte operand, then changes that bit to its opposite state (logical inversion).
  Bit 0 is the position $01, while bit 7 is the position $80.
- If the M0 register is used as the bit number, only the lower 3 bits of it pertain to the bit number.
+ If M0 is used as the bit number operand, only the lower 3 bits of it pertain to the bit number.
      Z - Set to the result of the change operation.
 +-------------+--------+---------------------------------------+
 | CP    B/W/P | ***V-- | (srcLeft - srcRight)                  |
@@ -525,7 +525,7 @@ ILG     Raise Illegal Instruction Exception
 +-------------+--------+---------------------------------------+
  Tests a bit of the read-modify-write byte operand, then resets that bit to 0.
  Bit 0 is the position $01, while bit 7 is the position $80.
- If the M0 register is used as the bit number, only the lower 3 bits of it pertain to the bit number.
+ If M0 is used as the bit number operand, only the lower 3 bits of it pertain to the bit number.
      Z - Set to the logical inverse of the given bit of the source operand.
 +-------------+--------+---------------------------------------+
 | RL    B/W/P | ****-* | X:rmw <<>= 1                          |
@@ -590,7 +590,7 @@ ILG     Raise Illegal Instruction Exception
 +-------------+--------+---------------------------------------+
  Tests a bit of the read-modify-write byte operand, then sets that bit to 1.
  Bit 0 is the position $01, while bit 7 is the position $80.
- If the M0 register is used as the bit number, only the lower 3 bits of it pertain to the bit number.
+ If M0 is used as the bit number operand, only the lower 3 bits of it pertain to the bit number.
      Z - Set to the logical inverse of the given bit of the source operand.
 +-------------+--------+---------------------------------------+
 | SLA   B/W/P | ****-* | rmw <<= 1                             |
@@ -772,7 +772,7 @@ Reset Routine:
     IRL = 0;
     PGC = $FFCFF0
 
-If multiple interrupts/exceptions occur simultaneously, the vectors higher above in this list will be ran first:
+If multiple interrupts/exceptions occur simultaneously, the vectors higher above in this list will run first:
 
 1.  Reset
 2.  NMI
