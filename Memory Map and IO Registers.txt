@@ -11,12 +11,132 @@ $FFA000 - $FFDFFF   16 KB  8-bit     Boot ROM ->(unmap)-> Hexridge ROM
 
 $FFE000 - $FFEFFF    4 KB  8-bit     Tilemap RAM
 $FFF000 - $FFF27F   640 B  8-bit     Sprite Attribute RAM
-$FFF280 - $FFF2FF   128 B            <reserved>
-$FFF300 - $FFF3FF   256 B  ?-bit     I/O Registers
+$FFF280 - $FFF2FF   128 B  8-bit     LCD I/O Registers
+$FFF300 - $FFF3FF   256 B  16-bit    HiveCraft I/O Registers
 $FFF400 - $FFFFFF    3 KB  16-bit    HRAM
 
 
-# I/O Register Map
+# LCD I/O Registers
+
+$80 - $8F    LCD Control Registers
+$90 - $97    7-Segment LCD Data
+$98 - $9F    LCD Module Miscellaneous
+$A0 - $A7    High-Priority SPR Palette Map
+$A8 - $AF    High-Priority BG Palette Map
+$B0 - $B7    Low-Priority SPR Palette Map
+$B8 - $BF    Low-Priority BG Palette Map
+
+$C0 - $FF    <reserved>
+
+Do not attempt to access a reserved register.
+
+
+## LCD Control
+
+$80    LCD_CTL  .B    LCD Control
++-+-+-+-+-+-+-=-+
+|-|-|-|-|L|S|STA|
++-+-+-+-+-+-+-=-+
+         | |  |
+         | |  +------  STAT  (R)    LCD Controller Status
+         | +---------  SEGEN (R/W)  Segments Enable
+         +-----------  LCDEN (R/W)  Hexagon LCD Enable
+Status:
+  0    Pre-render / Active Display
+  1    Horizontal Blank
+  2    Vertical Blank
+  3    Horizontal + Vertical Blank
+
+$82    LCD_LINE  .W    LCD Current Line (R)
++-+-+-+-+-+-+-+-=-=-=-=-=-=-=-=-+
+|0|0|0|0|0|0|0|      Line       |
++-+-+-+-+-+-+-+-=-=-=-=-=-=-=-=-+
+The horizontal line that the LCD controller is currently on. Ranges from 0 to 261.
+
+$84    LCD_LINECP  .W    LCD Compare Line (R/W)
++-+-+-+-+-+-+-+-=-=-=-=-=-=-=-=-+
+|-|-|-|-|-|-|-|      Line       |
++-+-+-+-+-+-+-+-=-=-=-=-=-=-=-=-+
+The horizontal line to fire a Line Compare interrupt on.
+
+$86    RAD_CTL  .W    RadarPPU Control
++-+-+-+-+-+-+-+-+-+-+-+-+-=-+-=-+
+|H|H|I|I|I|O|O|O|W|S|B|B|BGS|BGM|
++-+-+-+-+-+-+-+-+-+-+-+-+-=-+-=-+
+ | | | | | | | | | | | |  |   |
+ | | | | | | | | | | | |  |   +------  BGM    (R/W)  Background Mode
+ | | | | | | | | | | | |  +----------  BGS    (R/W)  Background Sub-mode
+ | | | | | | | | | | | +-------------  BG1EN  (R/W)  Enable BG1
+ | | | | | | | | | | +---------------  BG2EN  (R/W)  Enable BG2
+ | | | | | | | | | +-----------------  SPREN  (R/W)  Enable SPR
+ | | | | | | | | +-------------------  WINEN  (R/W)  Enable Window
+ | | | | | | | +---------------------  OUTBG1 (R/W)  BG1 Display Outside Window
+ | | | | | | +-----------------------  OUTBG2 (R/W)  BG2 Display Outside Window
+ | | | | | +-------------------------  OUTSPR (R/W)  SPR Display Outside Window
+ | | | | +---------------------------  INBG1  (R/W)  BG1 Display Inside Window
+ | | | +-----------------------------  INBG2  (R/W)  BG2 Display Inside Window
+ | | +-------------------------------  INSPR  (R/W)  SPR Display Inside Window
+ | +---------------------------------  HCBG1  (R/W)  Enable Hexagon Correction for BG1
+ +-----------------------------------  HCBG2  (R/W)  Enable Hexagon Correction for BG2
+
+$88    RAD_WINL  .B    Window Left Edge   (R/W)
+$89    RAD_WINT  .B    Window Top Edge    (R/W)
+$8A    RAD_WINR  .B    Window Right Edge  (R/W)
+$8B    RAD_WINB  .B    Window Bottom Edge (R/W)
+These 8-bit registers configure the edges of the window rectangle.
+
+$8C    RAD_BG1X  .B    BG1 X Scroll (R/W)
+$8D    RAD_BG1Y  .B    BG1 Y Scroll (R/W)
+$8E    RAD_BG2X  .B    BG2 X Scroll (R/W)
+$8F    RAD_BG2Y  .B    BG2 Y Scroll (R/W)
+These 8-bit registers configure the scrolling offsets for the background layers.
+
+
+## 7-Segment LCD Data
+
+$90    LCD_7SEG+0  .B    (R/W)
+$91    LCD_7SEG+1  .B    (R/W)
+$92    LCD_7SEG+2  .B    (R/W)
+$93    LCD_7SEG+3  .B    (R/W)
+$94    LCD_7SEG+4  .B    (R/W)
+$95    LCD_7SEG+5  .B    (R/W)
+$96    LCD_7SEG+6  .B    (R/W)
+$97    LCD_7SEG+7  .B    (R/W)
++-+-+-+-+-+-+-+-+
+|-|G|F|E|D|C|B|A|
++-+-+-+-+-+-+-+-+
+      A
+    -----
+ F |     | B
+   |  G  |
+    -----
+ E |     | C
+   |  D  |
+    -----
+
+
+## LCD Module Miscellaneous
+
+$98    BLD_CTL  .B    Backlight Driver Control
++-+-+-+-+-+-+-+-+
+|T|-|-|-|-|-|-|E|
++-+-+-+-+-+-+-+-+
+ |             |
+ |             +-----  EN   (R/W)  Backlight Enable
+ +-------------------  TYPE (R)    Backlight Type
+Backlight Types:
+  0    Monochrome
+  1    RGB
+
+$99    BLD_R  .B    Backlight Driver Red/Monochrome Intensity (R/W)
+$9A    BLD_G  .B    Backlight Driver Green Intensity          (R/W)
+$9B    BLD_B  .B    Backlight Driver Blue Intensity           (R/W)
+These 8-bit registers configure the backlight intensity or RGB color.
+
+$9F    LCD_VER  .B    LCD Module Version Number (R)
+
+
+# HiveCraft I/O Register Map
 
 $00 - $0F    Timers A, B
 $10 - $1F    DMA 1
@@ -27,17 +147,9 @@ $50 - $5F    Serial
 $60 - $6F    Settings RAM + Key
 $70 - $7F    Interrupt Controller
 
-$80 - $8F    LCD Control Registers
-$90 - $97    7-Segment LCD Data
-$98 - $9F    LCD Module Miscellaneous
-$A0 - $A7    High-Priority SPR Palette Map
-$A8 - $AF    High-Priority BG Palette Map
-$B0 - $B7    Low-Priority SPR Palette Map
-$B8 - $BF    Low-Priority BG Palette Map
+$80 - $9F    Audio (PowerNoise and PCM)
 
-$C0 - $DF    Audio (PowerNoise and PCM)
-
-$E0 - $FF    <reserved>
+$A0 - $FF    <reserved>
 
 Do not attempt to access a reserved register.
 
@@ -294,114 +406,9 @@ $79    INT_EXT  .B    Hexridge EXT
  +-------------------  EXT (R)  EXT Line State
 
 
-## LCD Control Registers
-
-$80    LCD_CTL  .B    LCD Control
-+-+-+-+-+-+-+-=-+
-|-|-|-|-|L|S|STA|
-+-+-+-+-+-+-+-=-+
-         | |  |
-         | |  +------  STAT  (R)    LCD Controller Status
-         | +---------  SEGEN (R/W)  Segments Enable
-         +-----------  LCDEN (R/W)  Hexagon LCD Enable
-Status:
-  0    Pre-render / Active Display
-  1    Horizontal Blank
-  2    Vertical Blank
-  3    Horizontal + Vertical Blank
-
-$82    LCD_LINE  .W    LCD Current Line (R)
-+-+-+-+-+-+-+-+-=-=-=-=-=-=-=-=-+
-|0|0|0|0|0|0|0|      Line       |
-+-+-+-+-+-+-+-+-=-=-=-=-=-=-=-=-+
-The horizontal line that the LCD controller is currently on. Ranges from 0 to 261.
-
-$84    LCD_LINECP  .W    LCD Compare Line (R/W)
-+-+-+-+-+-+-+-+-=-=-=-=-=-=-=-=-+
-|-|-|-|-|-|-|-|      Line       |
-+-+-+-+-+-+-+-+-=-=-=-=-=-=-=-=-+
-The horizontal line to fire a Line Compare interrupt on.
-
-$86    RAD_CTL  .W    RadarPPU Control
-+-+-+-+-+-+-+-+-+-+-+-+-+-=-+-=-+
-|H|H|I|I|I|O|O|O|W|S|B|B|BGS|BGM|
-+-+-+-+-+-+-+-+-+-+-+-+-+-=-+-=-+
- | | | | | | | | | | | |  |   |
- | | | | | | | | | | | |  |   +------  BGM    (R/W)  Background Mode
- | | | | | | | | | | | |  +----------  BGS    (R/W)  Background Sub-mode
- | | | | | | | | | | | +-------------  BG1EN  (R/W)  Enable BG1
- | | | | | | | | | | +---------------  BG2EN  (R/W)  Enable BG2
- | | | | | | | | | +-----------------  SPREN  (R/W)  Enable SPR
- | | | | | | | | +-------------------  WINEN  (R/W)  Enable Window
- | | | | | | | +---------------------  OUTBG1 (R/W)  BG1 Display Outside Window
- | | | | | | +-----------------------  OUTBG2 (R/W)  BG2 Display Outside Window
- | | | | | +-------------------------  OUTSPR (R/W)  SPR Display Outside Window
- | | | | +---------------------------  INBG1  (R/W)  BG1 Display Inside Window
- | | | +-----------------------------  INBG2  (R/W)  BG2 Display Inside Window
- | | +-------------------------------  INSPR  (R/W)  SPR Display Inside Window
- | +---------------------------------  HCBG1  (R/W)  Enable Hexagon Correction for BG1
- +-----------------------------------  HCBG2  (R/W)  Enable Hexagon Correction for BG2
-
-$88    RAD_WINL  .B    Window Left Edge   (R/W)
-$89    RAD_WINT  .B    Window Top Edge    (R/W)
-$8A    RAD_WINR  .B    Window Right Edge  (R/W)
-$8B    RAD_WINB  .B    Window Bottom Edge (R/W)
-These 8-bit registers configure the edges of the window rectangle.
-
-$8C    RAD_BG1X  .B    BG1 X Scroll (R/W)
-$8D    RAD_BG1Y  .B    BG1 Y Scroll (R/W)
-$8E    RAD_BG2X  .B    BG2 X Scroll (R/W)
-$8F    RAD_BG2Y  .B    BG2 Y Scroll (R/W)
-These 8-bit registers configure the scrolling offsets for the background layers.
-
-
-## 7-Segment LCD Data
-
-$90    LCD_7SEG+0  .B    (R/W)
-$91    LCD_7SEG+1  .B    (R/W)
-$92    LCD_7SEG+2  .B    (R/W)
-$93    LCD_7SEG+3  .B    (R/W)
-$94    LCD_7SEG+4  .B    (R/W)
-$95    LCD_7SEG+5  .B    (R/W)
-$96    LCD_7SEG+6  .B    (R/W)
-$97    LCD_7SEG+7  .B    (R/W)
-+-+-+-+-+-+-+-+-+
-|-|G|F|E|D|C|B|A|
-+-+-+-+-+-+-+-+-+
-      A
-    -----
- F |     | B
-   |  G  |
-    -----
- E |     | C
-   |  D  |
-    -----
-
-
-## LCD Module Miscellaneous
-
-$98    BLD_CTL  .B    Backlight Driver Control
-+-+-+-+-+-+-+-+-+
-|T|-|-|-|-|-|-|E|
-+-+-+-+-+-+-+-+-+
- |             |
- |             +-----  EN   (R/W)  Backlight Enable
- +-------------------  TYPE (R)    Backlight Type
-Backlight Types:
-  0    Monochrome
-  1    RGB
-
-$99    BLD_R  .B    Backlight Driver Red/Monochrome Intensity (R/W)
-$9A    BLD_G  .B    Backlight Driver Green Intensity          (R/W)
-$9B    BLD_B  .B    Backlight Driver Blue Intensity           (R/W)
-These 8-bit registers configure the backlight intensity or RGB color.
-
-$9F    LCD_VER  .B    LCD Module Version Number (R)
-
-
 ## Audio (PowerNoise and PCM)
 
-$C0    PN_ACTL  .B    PowerNoise Audio Control
+$80    PN_ACTL  .B    PowerNoise Audio Control
 +-+-+-+-+-+-=-=-+
 |E|*|*|-|-| VOL |
 +-+-+-+-+-+-=-=-+
@@ -410,16 +417,16 @@ $C0    PN_ACTL  .B    PowerNoise Audio Control
  | +-+---------------  (The I/O ports have fixed directions in the HiveCraft.)
  +-------------------  EN  (R/W)  PowerNoise Core Enable
 
-$D8    PN_SLACC  .B    PowerNoise Slope Accumulator
+$98    PN_SLACC  .B    PowerNoise Slope Accumulator
 +-+-=-=-=-=-=-=-+
 |-|     ACC     |
 +-+-=-=-=-=-=-=-+
          |
          +-----------  ACC (R/W)  Accumulator Content
 
-$C1    PN_N1CTL  .B    PowerNoise Noise 1 Control
-$C9    PN_N2CTL  .B    PowerNoise Noise 2 Control
-$D1    PN_N3CTL  .B    PowerNoise Noise 3 Control
+$81    PN_N1CTL  .B    PowerNoise Noise 1 Control
+$89    PN_N2CTL  .B    PowerNoise Noise 2 Control
+$91    PN_N3CTL  .B    PowerNoise Noise 3 Control
 +-+-+-+-+-+-+-+-+
 |E|-|-|-|-|-|A|M|
 +-+-+-+-+-+-+-+-+
@@ -428,7 +435,7 @@ $D1    PN_N3CTL  .B    PowerNoise Noise 3 Control
  |           +-------  AM   (R/W)  Enable Slope AM
  +-------------------  EN   (R/W)  Channel Enable
 
-$D9    PN_SLCTL  .B    PowerNoise Slope Control
+$99    PN_SLCTL  .B    PowerNoise Slope Control
 +-+-+-+-+-+-+-+-+
 |E|T|A|B|A|B|A|B|
 +-+-+-+-+-+-+-+-+
@@ -442,10 +449,10 @@ $D9    PN_SLCTL  .B    PowerNoise Slope Control
  | +-----------------  TRG  (W)    Wave Trigger
  +-------------------  EN   (R/W)  Channel Enable
 
-$C2    PN_N1F  .W    PowerNoise Noise 1 Frequency
-$CA    PN_N2F  .W    PowerNoise Noise 2 Frequency
-$D2    PN_N3F  .W    PowerNoise Noise 3 Frequency
-$DA    PN_SLF  .W    PowerNoise Slope Frequency
+$82    PN_N1F  .W    PowerNoise Noise 1 Frequency
+$8A    PN_N2F  .W    PowerNoise Noise 2 Frequency
+$92    PN_N3F  .W    PowerNoise Noise 3 Frequency
+$9A    PN_SLF  .W    PowerNoise Slope Frequency
 +-=-=-=-+-=-=-=-=-=-=-=-=-=-=-=-+
 |  OCT  |           R           |
 +-=-=-=-+-=-=-=-=-=-=-=-=-=-=-=-+
@@ -453,14 +460,14 @@ $DA    PN_SLF  .W    PowerNoise Slope Frequency
     |               +----------------  R   (R/W)  Timer Reload Value
     +--------------------------------  OCT (R/W)  Octave Select
 
-$C4    PN_N1SR  .W    PowerNoise Noise 1 Shift Register (R/W)
-$CC    PN_N2SR  .W    PowerNoise Noise 2 Shift Register (R/W)
-$D4    PN_N3SR  .W    PowerNoise Noise 3 Shift Register (R/W)
+$84    PN_N1SR  .W    PowerNoise Noise 1 Shift Register (R/W)
+$8C    PN_N2SR  .W    PowerNoise Noise 2 Shift Register (R/W)
+$94    PN_N3SR  .W    PowerNoise Noise 3 Shift Register (R/W)
 The current 16-bit contents of the Linear Feedback Shift Registers.
 
-$C6    PN_N1TAP  .B    PowerNoise Noise 1 Tap Locations
-$CE    PN_N2TAP  .B    PowerNoise Noise 2 Tap Locations
-$D6    PN_N3TAP  .B    PowerNoise Noise 3 Tap Locations
+$86    PN_N1TAP  .B    PowerNoise Noise 1 Tap Locations
+$8E    PN_N2TAP  .B    PowerNoise Noise 2 Tap Locations
+$96    PN_N3TAP  .B    PowerNoise Noise 3 Tap Locations
 +-=-=-=-+-=-=-=-+
 |   A   |   B   |
 +-=-=-=-+-=-=-=-+
@@ -468,11 +475,11 @@ $D6    PN_N3TAP  .B    PowerNoise Noise 3 Tap Locations
     |       +--------  B (R/W)  Tap B Location
     +----------------  A (R/W)  Tap A Location
 
-$DC    PN_SLPA  .B    PowerNoise Slope Portion A Length (R/W)
-$DD    PN_SLPB  .B    PowerNoise Slope Portion B Length (R/W)
+$9C    PN_SLPA  .B    PowerNoise Slope Portion A Length (R/W)
+$9D    PN_SLPB  .B    PowerNoise Slope Portion B Length (R/W)
 These 8-bit registers configure the lengths of the slope wave portions.
 
-$DE    PN_SLPO  .B    PowerNoise Slope Portion Offsets
+$9E    PN_SLPO  .B    PowerNoise Slope Portion Offsets
 +-=-=-=-+-=-=-=-+
 |   A   |   B   |
 +-=-=-=-+-=-=-=-+
@@ -480,10 +487,10 @@ $DE    PN_SLPO  .B    PowerNoise Slope Portion Offsets
     |       +--------  B (R/W)  Portion B Offset
     +----------------  A (R/W)  Portion A Offset
 
-$C7    PN_N1V  .B    PowerNoise Noise 1 Volume
-$CF    PN_N2V  .B    PowerNoise Noise 2 Volume
-$D7    PN_N3V  .B    PowerNoise Noise 3 Volume
-$DF    PN_SLV  .B    PowerNoise Slope Volume
+$87    PN_N1V  .B    PowerNoise Noise 1 Volume
+$8F    PN_N2V  .B    PowerNoise Noise 2 Volume
+$97    PN_N3V  .B    PowerNoise Noise 3 Volume
+$9F    PN_SLV  .B    PowerNoise Slope Volume
 +-=-=-=-+-=-=-=-+
 |   L   |   R   |
 +-=-=-=-+-=-=-=-+
@@ -493,7 +500,7 @@ $DF    PN_SLV  .B    PowerNoise Slope Volume
 
 PCM (repurposed GPIO):
 
-$C8    PCM_CTL  .B    PCM and Expansion Audio Control
+$88    PCM_CTL  .B    PCM and Expansion Audio Control
 +-+-+-+-+-=-+-+-+
 |X|X|-|-|SH |L|R|
 +-+-+-+-+-=-+-+-+
@@ -504,5 +511,5 @@ $C8    PCM_CTL  .B    PCM and Expansion Audio Control
  | +-----------------  XR (R/W)  Right Expansion Audio Enable
  +-------------------  XL (R/W)  Left Expansion Audio Enable
 
-$D0    PCM_DATA  .B    PCM Channel Data (R/W)
+$90    PCM_DATA  .B    PCM Channel Data (R/W)
 The 8-bit unsigned sample input for the PCM channel.
