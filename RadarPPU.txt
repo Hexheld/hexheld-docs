@@ -244,10 +244,10 @@ $FFF290 - $FFF297    LCD_7SEG (R/W)    7-Segment LCD Data
 These 8 registers store the segment data to display.
 
 Organization:
-+0    -GEFDCBA  (left-most digit)
-+1    -GEFDCBA
++0    -GFEDCBA  (left-most digit)
++1    -GFEDCBA
 ...
-+7    -GEFDCBA  (right-most digit)
++7    -GFEDCBA  (right-most digit)
        A
      -----
   F |     | B
