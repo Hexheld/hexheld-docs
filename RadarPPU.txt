@@ -340,7 +340,7 @@ Each BG uses a 32x32 map of 8x8 tiles, i.e. 256x256 pixels, which is beyond the 
 
 The scrolling registers ($FFF28C-$FFF28F) dictate the pixel positions within the maps to be displayed
 at the upper-left corner of the 168x224 LCD image.
-Increasing one of these registers will move the viewpoint further rightwards or downwards within the map.
+Increasing one of these registers will move the viewport further rightwards or downwards within the map.
 When scrolling beyond the edges of the map, the data from the other side will be repeated.
 
 BG Modes:
