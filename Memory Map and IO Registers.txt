@@ -317,10 +317,11 @@ The 16-bit results of the last ADC conversions in each channel.
 $50    SER_CTL  .B    Link Serial Control
 $51    CON_CTL  .B    Controller Serial Control
 +-+-+-+-+-+-+-=-+
-|B|N|-|-|-|-|CLK|
+|B|N|-|-|-|P|CLK|
 +-+-+-+-+-+-+-=-+
- | |          |
- | |          +------  CLK  (R/W)  Serial Transfer Clock Toggle Source
+ | |       |  |
+ | |       |  +------  CLK  (R/W)  Serial Transfer Clock Toggle Source
+ | |       +---------  POLL (W)    Initiate Controller Read (CON_CTL only, undefined in SER_CTL)
  | +-----------------  NEWR (R)    New Byte Received Flag
  +-------------------  BUSY (R)    Serial Transfer Busy (SER_CTL only, undefined in CON_CTL)
 Clock Sources:
