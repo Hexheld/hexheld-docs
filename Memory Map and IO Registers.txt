@@ -410,13 +410,18 @@ $79    INT_EXT  .B    Hexridge EXT
 ## Audio (PowerNoise and PCM)
 
 $80    PN_ACTL  .B    PowerNoise Audio Control
-+-+-+-+-+-+-=-=-+
-|E|*|*|-|-| VOL |
-+-+-+-+-+-+-=-=-+
- | | |       |
- | | |       +-------  VOL (R/W)  PowerNoise Core Master Volume
++-+-+-+-+-+-+-=-+
+|E|*|*|-|-|-|VOL|
++-+-+-+-+-+-+-=-+
+ | | |        |
+ | | |        +------  VOL (R/W)  PowerNoise Core Master Volume
  | +-+---------------  (The I/O ports have fixed directions in the HiveCraft.)
  +-------------------  EN  (R/W)  PowerNoise Core Enable
+Master Volumes:
+  0    0%      No Output
+  1    25%     No Shift
+  2    50%     Shift Left by 1
+  3    100%    Shift Left by 2
 
 $98    PN_SLACC  .B    PowerNoise Slope Accumulator
 +-+-=-=-=-=-=-=-+
@@ -511,6 +516,11 @@ $88    PCM_CTL  .B    PCM and Expansion Audio Control
  | |      +----------  SH (R/W)  Raw PCM Data Shift Amount
  | +-----------------  XR (R/W)  Right Expansion Audio Enable
  +-------------------  XL (R/W)  Left Expansion Audio Enable
+Shift Amounts
+  0    100% Volume
+  1    50% Volume
+  2    25% Volume
+  3    12.5% Volume
 
 $90    PCM_DATA  .B    PCM Channel Data (R/W)
 The 8-bit unsigned sample input for the PCM channel.
