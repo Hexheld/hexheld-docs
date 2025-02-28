@@ -259,15 +259,16 @@ $32    IR_CTL  .B    Infrared Control
 
 $34    CONSBTN  .B    On-Console Button State
 +-+-+-+-+-+-+-+-+
-|-|-|D|P|S|B|B|B|
+|-|-|-|P|S|B|B|B|
 +-+-+-+-+-+-+-+-+
-     | | | | | |
-     | | | | | +-----  BLADJ (R)  Backlight Adjust
-     | | | | +-------  BLUP  (R)  Backlight Up
-     | | | +---------  BLDN  (R)  Backlight Down
-     | | +-----------  SEL   (R)  Select
-     | +-------------  PAUSE (R)  Pause
-     +---------------  DEBUG (R)  Debug (devkit only)
+       | | | | |
+       | | | | +-----  BLADJ (R)  Backlight Adjust
+       | | | +-------  BLUP  (R)  Backlight Up
+       | | +---------  BLDN  (R)  Backlight Down
+       | +-----------  SEL   (R)  Select
+       +-------------  PAUSE (R)  Pause
+
+On a devkit, the Debug button is hooked up to the CPU's NMI input.
 
 $3C    CDIV  .W    Clock Divider Bits (R)
 The 16-bit contents of the divider/ripple counter.
@@ -369,18 +370,23 @@ $68    SETKEY  .W    Settings RAM Key (R/W)
 
 All registers here follow this format:
 +-=-=-=-+-+-=-=-+
-|special|E| LVL |
+|special|A| LVL |
 +-=-=-=-+-+-=-=-+
     |    |   |
     |    |   +-------  LVL (R/W)  Interrupt Source IRQ Level Assignment
-    |    +-----------  EN  (R/W)  Interrupt Source Enable
+    |    +-----------  ACK (R/W)  Interrupt Source Acknowledge
     +----------------  These bits have special significance for some interrupt sources.
+
+To disable an interrupt source, set its LVL field to 0.
+
+The ACK bit is automatically cleared when the interrupt is enabled and raised.
+It must be set to 1 in order to acknowledge the interrupt.
 
 $70    INT_VBL  .B    Vertical Blank
 
 $71    INT_HBL  .B    Horizontal Blank
 +-+-+-+-+-+-=-=-+
-|-|-|-|M|E| LVL |
+|-|-|-|M|A| LVL |
 +-+-+-+-+-+-=-=-+
        |
        +-------------  MODE (R/W)  Horizontal Interrupt Type
@@ -401,7 +407,7 @@ $78    INT_IR   .B    Infrared
 
 $79    INT_EXT  .B    Hexridge EXT
 +-+-+-+-+-+-=-=-+
-|X|-|-|-|E| LVL |
+|X|-|-|-|A| LVL |
 +-+-+-+-+-+-=-=-+
  |
  +-------------------  EXT (R)  EXT Line State
@@ -516,7 +522,7 @@ $88    PCM_CTL  .B    PCM and Expansion Audio Control
  | |      +----------  SH (R/W)  Raw PCM Data Shift Amount
  | +-----------------  XR (R/W)  Right Expansion Audio Enable
  +-------------------  XL (R/W)  Left Expansion Audio Enable
-Shift Amounts
+Shift Amounts:
   0    100% Volume
   1    50% Volume
   2    25% Volume
