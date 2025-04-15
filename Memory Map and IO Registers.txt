@@ -180,6 +180,10 @@ $06    TA_R  .W    Timer A Reload Value (R/W)
 $08    TB_R  .W    Timer B Reload Value (R/W)
 The 16-bit reload values for the timers.
 
+The timers count upward from the initial setting of Tx_C to $FFFF.
+After $FFFF, they are set to the value of Tx_R and the corresponding reload signal is pulsed.
+The input clock frequency will effectively become divided by 65536-Tx_R.
+
 
 ## DMA 1
 ## DMA 2
@@ -217,14 +221,18 @@ Size:
 $12    D1_N  .W    DMA 1 Transfer Count (R/W)
 $22    D2_N  .W    DMA 2 Transfer Count (R/W)
 The current 16-bit contents of the DMA size counters.
+The value written to these registers represents the number of bytes/words minus 1.
+These registers have internal backup copies to serve as reload values for repeated transfers.
 
 $14    D1_SA  .P    DMA 1 Source Address (R/W)
 $24    D2_SA  .P    DMA 2 Source Address (R/W)
 The current 24-bit contents of the DMA source address working pointers.
+These registers have internal backup copies to serve as reload values for repeated transfers.
 
 $18    D1_DA  .P    DMA 1 Destination Address (R/W)
 $28    D2_DA  .P    DMA 2 Destination Address (R/W)
 The current 24-bit contents of the DMA destination address working pointers.
+These registers have internal backup copies to serve as reload values for repeated transfers.
 
 $2F    D2_PRI  .B    DMA 2 Priority Control
 +-+-+-+-+-+-+-+-+
