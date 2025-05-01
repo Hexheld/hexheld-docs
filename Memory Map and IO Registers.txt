@@ -180,7 +180,7 @@ $06    TA_R  .W    Timer A Reload Value (R/W)
 $08    TB_R  .W    Timer B Reload Value (R/W)
 The 16-bit reload values for the timers.
 
-The timers count upward from the initial setting of Tx_C to $FFFF.
+The timers count upward from the current value in Tx_C to $FFFF.
 After $FFFF, they are set to the value of Tx_R and the corresponding reload signal is pulsed.
 The input clock frequency will effectively become divided by 65536-Tx_R.
 
