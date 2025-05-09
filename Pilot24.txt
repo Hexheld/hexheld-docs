@@ -603,7 +603,7 @@ ILG     Raise Illegal Instruction Exception
 +-------------+--------+---------------------------------------+
 | SRA   B/W/P | ***0-* | rmw >>= 1                             |
 +-------------+--------+---------------------------------------+
- Shifts the read-modify-write operand left by 1 bit position, in arithmetic fashion (propagate the highest bit).
+ Shifts the read-modify-write operand right by 1 bit position, in arithmetic fashion (propagate the highest bit).
      S - Set if the result is negative, cleared if not.
      Z - Set if the result is zero, cleared if not.
      C, X - Both set to copies of the original lowest bit which was shifted out.
@@ -611,7 +611,7 @@ ILG     Raise Illegal Instruction Exception
 +-------------+--------+---------------------------------------+
 | SRL   B/W/P | ****-* | rmw >>>= 1                            |
 +-------------+--------+---------------------------------------+
- Shifts the read-modify-write operand left by 1 bit position, in logical fashion (put in a zero on the left).
+ Shifts the read-modify-write operand right by 1 bit position, in logical fashion (put in a zero on the left).
      S - Set if the result is negative, cleared if not.
      Z - Set if the result is zero, cleared if not.
      C, X - Both set to copies of the original lowest bit which was shifted out.
