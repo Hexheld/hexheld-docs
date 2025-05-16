@@ -295,6 +295,8 @@ Speeds:
   2    2 MHz (DIV4)
   3    16384 Hz (SUB / 2)
 
+Clock speed and oscillator changes will not be applied until the CPU executes HALT.
+
 $3F    HCVER  .B    HiveCraft SoC Version Number (R)
 
 
@@ -341,14 +343,17 @@ Clock Sources:
 
 $52    SER_R  .B    Link Serial Receive Data (R)
 The 8-bit link serial data received. Clears NEWR in SER_CTL when accessed.
+This register is a latch; it does not resemble the internal shift register state.
 
 $53    SER_T  .B    Link Serial Transfer Out Data (R/W)
 The 8-bit link serial data to transfer out. Transfer starts immediately when written.
+This register is a latch; it does not resemble the internal shift register state.
 
 $54    CON_R1  .B    Controller 1 Serial Receive Data (R)
 $55    CON_R2  .B    Controller 2 Serial Receive Data (R)
 $56    CON_R3  .B    Controller 3 Serial Receive Data (R)
-The 8-bit controller serial data received. Clears NEWR in CON_CTL when CON_R3 is accessed.
+The 8-bit controller serial data received. Clears NEWR in CON_CTL when CON_R3 is read.
+These registers are updated in real time as the bits are loaded in.
 
 $58    SER_AUX  .B    Link Auxiliary I/O
 +-+-+-+-+-+-+-+-+
@@ -372,6 +377,7 @@ $67    SETRAM+7  .B
 Settings RAM is normally (R), but when unlocked with the key, it all becomes (R/W).
 
 $68    SETKEY  .W    Settings RAM Key (R/W)
+The 16-bit key register for unlocking settings RAM.
 
 
 ## Interrupt Controller
