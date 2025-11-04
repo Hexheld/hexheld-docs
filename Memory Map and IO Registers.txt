@@ -80,8 +80,8 @@ $86    RAD_CTL  .W    RadarPPU Control
  +-----------------------------------  HCBG2  (R/W)  Enable Hexagon Correction for BG2
 
 $88    RAD_WINL  .B    Window Left Edge   (R/W)
-$89    RAD_WINT  .B    Window Top Edge    (R/W)
-$8A    RAD_WINR  .B    Window Right Edge  (R/W)
+$89    RAD_WINR  .B    Window Right Edge  (R/W)
+$8A    RAD_WINT  .B    Window Top Edge    (R/W)
 $8B    RAD_WINB  .B    Window Bottom Edge (R/W)
 These 8-bit registers configure the edges of the window rectangle.
 
@@ -544,3 +544,4 @@ Shift Amounts:
 
 $90    PCM_DATA  .B    PCM Channel Data (R/W)
 The 8-bit unsigned sample input for the PCM channel.
+
