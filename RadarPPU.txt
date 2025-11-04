@@ -212,9 +212,9 @@ $FFF287    RAD_CTL_H (R/W)    RadarPPU Control (High)
 $FFF288    RAD_WINL (R/W)    Window Left Edge
   LLLLLLLL
 $FFF289    RAD_WINR (R/W)    Window Right Edge
-  TTTTTTTT
-$FFF28A    RAD_WINT (R/W)    Window Top Edge
   RRRRRRRR
+$FFF28A    RAD_WINT (R/W)    Window Top Edge
+  TTTTTTTT
 $FFF28B    RAD_WINB (R/W)    Window Bottom Edge
   BBBBBBBB
       L (R/W) - The inclusive X position of the left edge of the window rectangle.
@@ -451,4 +451,5 @@ Display Priority Relationship:
 Rendering Timings:
 
 NOTE: Check `ppu_timings.txt` by Kagamiin.
+
 
