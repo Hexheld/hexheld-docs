@@ -91,6 +91,7 @@ Both maps are 32 tiles wide by 32 tiles tall, and are arranged in left-to-right,
 
 Each tilemap entry is a 16-bit little-endian word and its format varies according to the BPP and BG mode:
 
+           +1       +0
 Bitmap:    DYYYYYYY YXXXXXXX
 4BPP:      D--CCCCC CCCCCSHV
 3BPP:      P--CCCCC CCCCCSHV
@@ -210,20 +211,20 @@ $FFF287    RAD_CTL_H (R/W)    RadarPPU Control (High)
 
 $FFF288    RAD_WINL (R/W)    Window Left Edge
   LLLLLLLL
-$FFF289    RAD_WINT (R/W)    Window Top Edge
+$FFF289    RAD_WINR (R/W)    Window Right Edge
   TTTTTTTT
-$FFF28A    RAD_WINR (R/W)    Window Right Edge
+$FFF28A    RAD_WINT (R/W)    Window Top Edge
   RRRRRRRR
 $FFF28B    RAD_WINB (R/W)    Window Bottom Edge
   BBBBBBBB
       L (R/W) - The inclusive X position of the left edge of the window rectangle.
                     This value must not exceed the display boundary of 167.
+      R (R/W) - The exclusive X position of the right edge of the window rectangle.
+                    This value must not exceed the display boundary of 168, and must be greater than L.
       T (R/W) - The inclusive Y position of the top edge of the window rectangle.
                     This value must not exceed the display boundary of 223.
-      R (R/W) - The exclusive X position of the right edge of the window rectangle.
-                    This value must not exceed the display boundary of 168, and also must be greater than L.
       B (R/W) - The exclusive Y position of the bottom edge of the window rectangle.
-                    This value must not exceed the display boundary of 224, and also must be greater than T.
+                    This value must not exceed the display boundary of 224, and must be greater than T.
 
 $FFF28C    RAD_BG1X (R/W)    BG1 X Scroll
   XXXXXXXX
@@ -450,3 +451,4 @@ Display Priority Relationship:
 Rendering Timings:
 
 NOTE: Check `ppu_timings.txt` by Kagamiin.
+
