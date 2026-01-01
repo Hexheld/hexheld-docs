@@ -43,12 +43,14 @@ WF Format:
              |   +-------------------  S    Sign (0: Positive, 1: Negative)
              +-----------------------  IRL  Interrupt Request Level
 
-X is a ditto of C, specifically used to chain arithmetic operations together to deal with large numbers.
+X is a ditto of C that is used to chain arithmetic operations together to deal with large numbers.
+The C flag is used for conditional branching.
 
 Decimal Mode applies to the byte (.B) versions of ADD, ADX, SUB, SBX, NEG, and NGX.
+This allows them to operate on 2-digit packed binary-coded decimal.
 
-IRL specifies which IRQ levels should be monitored.
-Only the IRQ numbers less than and equal to IRL will be processed. The greater ones will be masked out.
+IRL specifies how many IRQ levels should be monitored.
+Any IRQ whose number is *greater* than IRL will be masked out.
 
 Bit 0 of PGC is fixed to zero. This means that instruction words must be word-aligned.
 
@@ -80,9 +82,9 @@ Conditions:
 4   -  ULE         C == 1 || Z == 1     Unsigned Less Than or Equal
 5   -  UGT         C == 0 && Z == 0     Unsigned Greater Than
 6   -  C / ULT     C == 1               Carry / Unsigned Less Than
-7   -  NC / UGE    C == 0               No Carry / Unsigned Greater or Equal
-8   -  M           S == 1               Minus Sign
-9   -  P           S == 0               Plus Sign
+7   -  NC / UGE    C == 0               No Carry / Unsigned Greater Than or Equal
+8   -  M           S == 1               Minus Sign (Negative)
+9   -  P           S == 0               Plus Sign (Positive)
 10  -  OV / PE     VP == 1              Overflow / Parity Even
 11  -  NOV / PO    VP == 0              No Overflow / Parity Odd
 12  -  Z / EQ      Z == 1               Zero / Equal
@@ -797,11 +799,13 @@ If multiple interrupts/exceptions occur simultaneously, the vectors higher above
 
 - All instruction words and multi-byte values in memory are little-endian: the lowest byte is at the base address.
 - 16-bit and 24-bit memory accesses must be word-aligned. Bit 0 of the address is simply ignored.
-    As such, it is recommended to add 1 byte of padding to each 24-bit pointer value found in memory.
+    As such, it is recommended to add 1 byte of padding to each 24-bit pointer value found in memory. For optimal
+    memory usage, it is best to give this byte some sort of use.
 - The stack uses the "full-descending" convention: SP decreases before storing, and increases after loading.
 - The return address pushed onto the stack is the address of the instruction following the call instruction.
 - PGC-relative offsets are relative to the address of the next instruction.
+- All 24-bit memory accesses consist of a 16-bit access followed by an 8-bit access.
+    When fetching 24-bit imm data from the instruction stream, two 16-bit words are fetched in little-endian order
+    to get a 32-bit value. The upper 8 bits of the 32-bit value are ignored. Thus, when this document says 'imm24',
+    it is actually present as an imm32. 'hml' is a true 24-bit value and does not yield wasted bytes.
 
-All 24-bit memory accesses consist of a 16-bit access followed by an 8-bit access.
-When fetching 24-bit imm data, 2 16-bit words are fetched in little-endian order to get a 32-bit value.
-The upper 8 bits of the 32-bit value are ignored.
