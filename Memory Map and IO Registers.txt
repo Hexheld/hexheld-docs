@@ -526,22 +526,24 @@ $9F    PN_SLV  .B    PowerNoise Slope Volume
 
 PCM (repurposed GPIO):
 
-$88    PCM_CTL  .B    PCM and Expansion Audio Control
+$88    AUD_CTL  .B    Audio Control
 +-+-+-+-+-=-+-+-+
-|X|X|-|-|SH |L|R|
+|P|X|X|-|SH |L|R|
 +-+-+-+-+-=-+-+-+
- | |      |  | |
- | |      |  | +-----  R  (R/W)  Raw PCM Output to Right
- | |      |  +-------  L  (R/W)  Raw PCM Output to Left
- | |      +----------  SH (R/W)  Raw PCM Data Shift Amount
- | +-----------------  XR (R/W)  Right Expansion Audio Enable
- +-------------------  XL (R/W)  Left Expansion Audio Enable
+ | | |    |  | |
+ | | |    |  | +-----  R    (R/W)  Raw PCM Output to Right
+ | | |    |  +-------  L    (R/W)  Raw PCM Output to Left
+ | | |    +----------  SH   (R/W)  Raw PCM Data Shift Amount
+ | | +---------------  XR   (R/W)  Right Expansion Audio Enable
+ | +-----------------  XL   (R/W)  Left Expansion Audio Enable
+ +-------------------  PWEN (R/W)  HiveCraft Audio Enable
 Shift Amounts:
-  0    100% Volume
-  1    50% Volume
-  2    25% Volume
-  3    12.5% Volume
+  0    100% Volume     No shift
+  1    50% Volume      Shift right by 1, then add $40
+  2    25% Volume      Shift right by 2, then add $60
+  3    12.5% Volume    Shift right by 3, then add $70
+
+If PCM is disabled for a given side, it will output a value of $80 on that side.
 
 $90    PCM_DATA  .B    PCM Channel Data (R/W)
 The 8-bit unsigned sample input for the PCM channel.
-
