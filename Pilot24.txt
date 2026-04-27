@@ -347,7 +347,7 @@ ILG     Raise Illegal Instruction Exception
 +-------------+--------+---------------------------------------+
 | CEA         | ------ | @-SP = PGC; PGC = EA of src24         |
 +-------------+--------+---------------------------------------+
- Calls the subroutine at the effective address of the source operand. No address is actually fetched from memory.
+ Calls the subroutine at the effective address of the source operand. No address is actually read from memory.
  The post-increment and pre-decrement operations will still take effect, with an amount of 4.
  If the source operand is a register or an immediate value, the call address will be unpredictable.
 +-------------+--------+---------------------------------------+
@@ -422,7 +422,7 @@ ILG     Raise Illegal Instruction Exception
 +-------------+--------+---------------------------------------+
 | JEA         | ------ | PGC = EA of src24                     |
 +-------------+--------+---------------------------------------+
- Jumps to the effective address of the source operand. No address is actually fetched from memory.
+ Jumps to the effective address of the source operand. No address is actually read from memory.
  The post-increment and pre-decrement operations will still take effect, with an amount of 4.
  If the source operand is a register or an immediate value, the jump address will be unpredictable.
 +-------------+--------+---------------------------------------+
@@ -801,11 +801,12 @@ If multiple interrupts/exceptions occur simultaneously, the vectors higher above
 - 16-bit and 24-bit memory accesses must be word-aligned. Bit 0 of the address is simply ignored.
     As such, it is recommended to add 1 byte of padding to each 24-bit pointer value found in memory. For optimal
     memory usage, it is best to give this byte some sort of use.
-- The stack uses the "full-descending" convention: SP decreases before storing, and increases after loading.
-- The return address pushed onto the stack is the address of the instruction following the call instruction.
-- PGC-relative offsets are relative to the address of the next instruction.
 - All 24-bit memory accesses consist of a 16-bit access followed by an 8-bit access.
     When fetching 24-bit imm data from the instruction stream, two 16-bit words are fetched in little-endian order
     to get a 32-bit value. The upper 8 bits of the 32-bit value are ignored. Thus, when this document says 'imm24',
     it is actually present as an imm32. 'hml' is a true 24-bit value and does not yield wasted bytes.
 
+- The stack uses the "full-descending" convention: SP decreases before storing, and increases after loading.
+- The return address pushed onto the stack is the address of the instruction following the call instruction.
+
+- PGC-relative offsets are relative to the address of the next instruction.
