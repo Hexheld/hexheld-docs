@@ -386,8 +386,12 @@ ILG     Raise Illegal Instruction Exception
  R0 depends on the operation size: L0 for DIVS.B, W0 for DIVS.W, or P0 for DIVS.P.
  R0 supplies the upper half of the dividend.
  If the divisor is zero, the DIVS operation is discarded and the Divide By Zero Exception will be raised.
+ If the division produces an overflow (VP is set), the operation is terminated and the results will be undefined.
+ The Division Overflow Exception will be raised in case of overflow.
      S - Set if the quotient stored into the register operand is negative, cleared if not.
+         Unpredictable in the case of divide-by-zero or overflow.
      Z - Set if the quotient stored into the register operand is zero, cleared if not.
+         Unpredictable in the case of divide-by-zero or overflow.
      C - This flag is cleared.
      VP - Set if the quotient exceeded the signed range of the operation size, cleared otherwise.
 +-------------+--------+---------------------------------------+
@@ -397,8 +401,12 @@ ILG     Raise Illegal Instruction Exception
  R0 depends on the operation size: L0 for DIVU.B, W0 for DIVU.W, or P0 for DIVU.P.
  R0 supplies the upper half of the dividend.
  If the divisor is zero, the DIVU operation is discarded and the Divide By Zero Exception will be raised.
+ If the division produces a carry (VP is set), the operation is terminated and the results will be undefined.
+ The Division Overflow Exception will be raised in case of overflow.
      S - Set if the quotient stored into the register operand is negative, cleared if not.
+         Unpredictable in the case of divide-by-zero or overflow.
      Z - Set if the quotient stored into the register operand is zero, cleared if not.
+         Unpredictable in the case of divide-by-zero or overflow.
      C - This flag is cleared.
      VP - Set if the quotient exceeded the unsigned limit of the operation size, cleared otherwise.
 +-------------+--------+---------------------------------------+
@@ -750,7 +758,7 @@ $FFCF80    <reserved>
 $FFCF90    <reserved>
 $FFCFA0    <reserved>
 $FFCFB0    <reserved>
-$FFCFC0    <reserved>
+$FFCFC0    Division Overflow Exception
 $FFCFD0    Divide By Zero Exception
 $FFCFE0    Illegal Instruction Exception
 $FFCFF0    Reset
@@ -790,9 +798,8 @@ If multiple interrupts/exceptions occur simultaneously, the vectors higher above
 7.  IRQ5
 8.  IRQ6
 9.  IRQ7
-10. Divide By Zero Exception*
-11. Illegal Instruction Exception*
-* These two are mutually-exclusive.
+10. Any exception*
+* All 3 exception types are mutually-exclusive.
 
 
 *** PROCESSOR DESIGN NOTES ***
