@@ -149,7 +149,9 @@ $70 - $7F    Interrupt Controller
 
 $80 - $9F    Audio (PowerNoise and PCM)
 
-$A0 - $FF    <reserved>
+$A0 - $FD    <reserved>
+
+$FE - $FF    Safeguard Register
 
 Do not attempt to access a reserved register.
 
@@ -547,3 +549,11 @@ If PCM is disabled for a given side, it will output a value of $80 on that side.
 
 $90    PCM_DATA  .B    PCM Channel Data (R/W)
 The 8-bit unsigned sample input for the PCM channel.
+
+
+## Safeguard
+
+$FE    TRAP  .W    Initiate Reset (R/W)
+
+A read or write from this 16-bit register initiates a soft-reset to the CPU.
+This is vital for prevention of system register corruption in the case of infinite stack recursion.
