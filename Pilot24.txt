@@ -401,7 +401,7 @@ ILG     Raise Illegal Instruction Exception
  R0 depends on the operation size: L0 for DIVU.B, W0 for DIVU.W, or P0 for DIVU.P.
  R0 supplies the upper half of the dividend.
  If the divisor is zero, the DIVU operation is discarded and the Divide By Zero Exception will be raised.
- If the division produces a carry (VP is set), the operation is terminated and the results will be undefined.
+ If the division produces an overflow (VP is set), the operation is terminated and the results will be undefined.
  The Division Overflow Exception will be raised in case of overflow.
      S - Set if the quotient stored into the register operand is negative, cleared if not.
          Unpredictable in the case of divide-by-zero or overflow.
@@ -552,7 +552,7 @@ ILG     Raise Illegal Instruction Exception
  Rotates the read-modify-write operand left by 1 bit position, circular.
      S - Set if the result is negative, cleared if not.
      Z - Set if the result is zero, cleared if not.
-     C, X - Both set to copies of the original highest bit which was shifted out.
+     C, X - Both set to copies of the original highest bit which was shifted around.
      VP - Set if the highest bit of the read-modify-write operand was flipped, cleared if it wasn't.
 +-------------+--------+---------------------------------------+
 | RR    B/W/P | ****-* | X:rmw >><= 1                          |
@@ -569,7 +569,7 @@ ILG     Raise Illegal Instruction Exception
  Rotates the read-modify-write operand right by 1 bit position, circular.
      S - Set if the result is negative, cleared if not.
      Z - Set if the result is zero, cleared if not.
-     C, X - Both set to copies of the original lowest bit which was shifted out.
+     C, X - Both set to copies of the original lowest bit which was shifted around.
      VP - Set if the highest bit of the read-modify-write operand was flipped, cleared if it wasn't.
 +-------------+--------+---------------------------------------+
 | RST         | ------ | @-SP = PGC; PGC = $FFD000 + (n * 16)  |
@@ -619,10 +619,10 @@ ILG     Raise Illegal Instruction Exception
      C, X - Both set to copies of the original lowest bit which was shifted out.
      VP - This flag is always cleared, since the highest bit can never flip.
 +-------------+--------+---------------------------------------+
-| SRL   B/W/P | ****-* | rmw >>>= 1                            |
+| SRL   B/W/P | 0***-* | rmw >>>= 1                            |
 +-------------+--------+---------------------------------------+
  Shifts the read-modify-write operand right by 1 bit position, in logical fashion (put in a zero on the left).
-     S - Set if the result is negative, cleared if not.
+     S - This flag is always cleared, since the result is always non-negative.
      Z - Set if the result is zero, cleared if not.
      C, X - Both set to copies of the original lowest bit which was shifted out.
      VP - Set if the highest bit of the read-modify-write operand was flipped, cleared if it wasn't.
